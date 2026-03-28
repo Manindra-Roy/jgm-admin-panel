@@ -1,0 +1,64 @@
+/* src/index.css */
+* {
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  /* Deep, modern animated gradient background to make the glass pop */
+  background: linear-gradient(-45deg, #0f172a, #1e293b, #0f3460, #16213e);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  color: #e2e8f0;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* --- THE CORE GLASS UTILITY CLASS --- */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03); /* Barely visible white */
+  backdrop-filter: blur(16px);           /* The frost effect */
+  -webkit-backdrop-filter: blur(16px);   /* Safari support */
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1); /* Subtle light reflection */
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); /* Soft shadow for depth */
+}
+
+/* Glass Input Fields for Forms */
+.glass-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.3s;
+  width: 100%;
+}
+
+.glass-input:focus {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+}
+
+/* Custom Scrollbar to match the theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
