@@ -1,12 +1,17 @@
 // src/pages/Orders.jsx
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FaTrash, FaClipboardList } from 'react-icons/fa';
+import { FaTrash, FaClipboardList, FaEye, FaTimes } from 'react-icons/fa';
 
 export default function Orders() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    
+    // Modal State
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loadingDetails, setLoadingDetails] = useState(false);
 
     const fetchOrders = async () => {
         try {
@@ -27,6 +32,10 @@ export default function Orders() {
         try {
             await api.put(`/orders/${orderId}`, { status: newStatus });
             fetchOrders(); 
+            // Update modal state if it's currently open
+            if (selectedOrder && selectedOrder.id === orderId) {
+                setSelectedOrder(prev => ({ ...prev, status: newStatus }));
+            }
         } catch (err) {
             alert('Failed to update order status.');
         }
@@ -37,10 +46,31 @@ export default function Orders() {
             try {
                 await api.delete(`/orders/${orderId}`);
                 fetchOrders();
+                if (selectedOrder && selectedOrder.id === orderId) closeModal();
             } catch (err) {
                 alert('Failed to delete order.');
             }
         }
+    };
+
+    const viewOrderDetails = async (orderId) => {
+        setIsModalOpen(true);
+        setLoadingDetails(true);
+        try {
+            // The backend GET /:id route populates the orderItems and product details
+            const response = await api.get(`/orders/${orderId}`);
+            setSelectedOrder(response.data);
+        } catch (err) {
+            alert('Failed to fetch order details.');
+            setIsModalOpen(false);
+        } finally {
+            setLoadingDetails(false);
+        }
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setSelectedOrder(null);
     };
 
     const getStatusStyle = (status) => {
@@ -55,7 +85,7 @@ export default function Orders() {
     if (loading) return <h2 style={{ padding: '40px', color: 'white' }}>Loading Order History...</h2>;
 
     return (
-        <div style={{ padding: '40px 40px 40px 20px' }}>
+        <div style={{ padding: '40px 40px 40px 20px', position: 'relative' }}>
             <h1 style={{ marginBottom: '40px', color: '#fff', fontWeight: '300', fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <FaClipboardList style={{ color: '#e67e22' }} /> Order Fulfillment
             </h1>
@@ -82,20 +112,14 @@ export default function Orders() {
                                 const statusStyle = getStatusStyle(order.status);
                                 return (
                                     <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                        {/* <td style={{ padding: '15px 10px', fontSize: '0.9em', color: '#94a3b8', fontFamily: 'monospace' }}>
-                                            ...{order.id.slice(-6)}
-                                        </td> */}
                                         <td style={{ padding: '15px 10px', fontSize: '0.85em', color: '#94a3b8', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
                                            {order.id}
                                         </td>
                                         <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>
                                             {order.user ? order.user.name : 'Guest User'}
                                         </td>
-                                        {/* <td style={{ padding: '15px 10px', color: '#2ecc71', fontWeight: 'bold' }}>
-                                            ₹{order.totalPrice}
-                                        </td> */}
                                         <td style={{ padding: '15px 10px', color: '#2ecc71', fontWeight: 'bold', fontSize: '1.1em' }}>
-                                            ₹{order.totalPrice.toLocaleString('en-IN')}
+                                            ₹{order.totalPrice?.toLocaleString('en-IN') || 0}
                                         </td>
                                         <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>
                                             {new Date(order.dateOrdered).toLocaleDateString()}
@@ -124,6 +148,15 @@ export default function Orders() {
                                         </td>
                                         <td style={{ padding: '15px 10px', textAlign: 'center' }}>
                                             <button 
+                                                onClick={() => viewOrderDetails(order.id)} 
+                                                style={{ backgroundColor: 'transparent', color: '#3498db', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s', marginRight: '10px' }}
+                                                title="View Details"
+                                                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.2)'} 
+                                                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                            >
+                                                <FaEye />
+                                            </button>
+                                            <button 
                                                 onClick={() => handleDelete(order.id)} 
                                                 style={{ backgroundColor: 'transparent', color: '#e74c3c', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s' }}
                                                 title="Delete Order"
@@ -140,6 +173,73 @@ export default function Orders() {
                     </tbody>
                 </table>
             </div>
+
+            {/* ORDER DETAILS MODAL */}
+            {isModalOpen && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                    <div className="glass-panel" style={{ width: '90%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '30px', position: 'relative', backgroundColor: '#16213e' }}>
+                        
+                        <button onClick={closeModal} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}>
+                            <FaTimes />
+                        </button>
+
+                        <h2 style={{ marginTop: 0, color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '15px' }}>Order Details</h2>
+
+                        {loadingDetails ? (
+                            <p style={{ color: '#94a3b8' }}>Fetching items...</p>
+                        ) : selectedOrder ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', color: '#e2e8f0' }}>
+                                
+                                {/* Shipping Info */}
+                                <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', color: '#3498db' }}>Shipping Information</h4>
+                                    <p style={{ margin: '5px 0' }}><strong>Name:</strong> {selectedOrder.user?.name || 'Guest'}</p>
+                                    <p style={{ margin: '5px 0' }}><strong>Phone:</strong> {selectedOrder.phone}</p>
+                                    <p style={{ margin: '5px 0' }}><strong>Address:</strong> {selectedOrder.shippingAddress1} {selectedOrder.shippingAddress2 && `, ${selectedOrder.shippingAddress2}`}</p>
+                                    <p style={{ margin: '5px 0' }}><strong>Location:</strong> {selectedOrder.city}, {selectedOrder.zip}, {selectedOrder.country}</p>
+                                </div>
+
+                                {/* Order Items */}
+                                <div>
+                                    <h4 style={{ margin: '0 0 10px 0', color: '#3498db' }}>Purchased Items</h4>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                                                <th style={{ textAlign: 'left', padding: '10px' }}>Product</th>
+                                                <th style={{ textAlign: 'center', padding: '10px' }}>Qty</th>
+                                                <th style={{ textAlign: 'right', padding: '10px' }}>Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedOrder.orderItems?.map((item, index) => (
+                                                <tr key={index} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <td style={{ padding: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                        {item.product?.image && <img src={item.product.image} alt="product" style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }}/>}
+                                                        {item.product?.name || 'Unknown Product'}
+                                                    </td>
+                                                    <td style={{ textAlign: 'center', padding: '10px' }}>x{item.quantity}</td>
+                                                    <td style={{ textAlign: 'right', padding: '10px' }}>₹{(item.product?.price || 0).toLocaleString('en-IN')}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colSpan="2" style={{ textAlign: 'right', padding: '15px 10px', fontWeight: 'bold' }}>Total:</td>
+                                                <td style={{ textAlign: 'right', padding: '15px 10px', fontWeight: 'bold', color: '#2ecc71', fontSize: '1.2rem' }}>
+                                                    ₹{selectedOrder.totalPrice?.toLocaleString('en-IN')}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+
+                            </div>
+                        ) : (
+                            <p style={{ color: '#e74c3c' }}>Failed to load data.</p>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

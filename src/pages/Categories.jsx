@@ -1,7 +1,7 @@
 // src/pages/Categories.jsx
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FaTrash, FaTags } from 'react-icons/fa';
+import { FaTrash, FaTags, FaEdit } from 'react-icons/fa';
 
 export default function Categories() {
     const [categories, setCategories] = useState([]);
@@ -12,6 +12,7 @@ export default function Categories() {
     const [icon, setIcon] = useState('');
     const [color, setColor] = useState('#3498db');
     const [error, setError] = useState('');
+    const [editingId, setEditingId] = useState(null);
 
     const fetchCategories = async () => {
         try {
@@ -28,17 +29,38 @@ export default function Categories() {
         fetchCategories();
     }, []);
 
-    const handleAddCategory = async (e) => {
+    // Populate form when Edit is clicked
+    const handleEditClick = (category) => {
+        setEditingId(category.id);
+        setName(category.name);
+        setIcon(category.icon || '');
+        setColor(category.color || '#3498db');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setName('');
+        setIcon('');
+        setColor('#3498db');
+        setError('');
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         try {
-            await api.post('/categories', { name, icon, color });
-            setName('');
-            setIcon('');
-            setColor('#3498db');
+            if (editingId) {
+                // Update existing category
+                await api.put(`/categories/${editingId}`, { name, icon, color });
+            } else {
+                // Create new category
+                await api.post('/categories', { name, icon, color });
+            }
+            handleCancelEdit(); // Reset form
             fetchCategories(); // Refresh the list
         } catch (err) {
-            setError('Failed to create category.');
+            setError(`Failed to ${editingId ? 'update' : 'create'} category.`);
         }
     };
 
@@ -65,10 +87,12 @@ export default function Categories() {
 
             <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 
-                {/* CREATE CATEGORY FORM */}
+                {/* CREATE/EDIT CATEGORY FORM */}
                 <div className="glass-panel" style={{ padding: '30px', flex: '1', minWidth: '300px' }}>
-                    <h3 style={{ marginBottom: '25px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Create Category</h3>
-                    <form onSubmit={handleAddCategory} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <h3 style={{ marginBottom: '25px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>
+                        {editingId ? 'Edit Category' : 'Create Category'}
+                    </h3>
+                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <div>
                             <label style={{ display: 'block', marginBottom: '8px', color: '#94a3b8', fontSize: '0.9rem' }}>Category Name</label>
                             <input 
@@ -100,11 +124,16 @@ export default function Categories() {
                                 style={{ padding: '5px', cursor: 'pointer', height: '50px' }} 
                             />
                         </div>
-                        <button type="submit" style={{ padding: '15px', backgroundColor: 'rgba(155, 89, 182, 0.2)', color: '#d2b4de', border: '1px solid rgba(155, 89, 182, 0.5)', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', fontSize: '1.1rem', marginTop: '10px' }}
-                        onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(155, 89, 182, 0.4)' }}
-                        onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(155, 89, 182, 0.2)' }}>
-                            + Save Category
-                        </button>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                            <button type="submit" style={{ flex: 1, padding: '15px', backgroundColor: 'rgba(155, 89, 182, 0.2)', color: '#d2b4de', border: '1px solid rgba(155, 89, 182, 0.5)', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', fontSize: '1.1rem' }}>
+                                {editingId ? 'Update Category' : '+ Save Category'}
+                            </button>
+                            {editingId && (
+                                <button type="button" onClick={handleCancelEdit} style={{ flex: 1, padding: '15px', backgroundColor: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', border: '1px solid rgba(231, 76, 60, 0.5)', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s', fontSize: '1.1rem' }}>
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
                     </form>
                 </div>
 
@@ -132,6 +161,14 @@ export default function Categories() {
                                             <span style={{ display: 'inline-block', width: '24px', height: '24px', backgroundColor: cat.color, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)', boxShadow: `0 0 10px ${cat.color}40` }}></span>
                                         </td>
                                         <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                            <button 
+                                                onClick={() => handleEditClick(cat)}
+                                                style={{ backgroundColor: 'transparent', color: '#3498db', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px', transition: 'transform 0.2s' }}
+                                                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.2)'} 
+                                                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                            >
+                                                <FaEdit />
+                                            </button>
                                             <button 
                                                 onClick={() => handleDelete(cat.id)}
                                                 style={{ backgroundColor: 'transparent', color: '#e74c3c', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s' }}
