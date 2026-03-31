@@ -46,88 +46,56 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const [
-                    productsRes, 
-                    usersRes,
-                    allOrdersRes 
-                ] = await Promise.all([
+                // We now make ONE highly efficient call for all order math
+                const [ productsRes, usersRes, dashboardRes ] = await Promise.all([
                     api.get('/products/get/count'),
                     api.get('/users/get/count'),
-                    api.get('/orders') 
+                    api.get('/orders/get/dashboard-stats') 
                 ]);
 
+                // Set standard DB counts
                 setActiveProducts(productsRes.data.productCount || 0);
                 setRegisteredUsers(usersRes.data.userCount || 0);
 
-                const allOrders = allOrdersRes.data;
-                
-                let dynamicTotalSales = 0;
-                let dynamicSuccessful = 0;
-                let dynamicCanceled = 0;
-                let dynamicProcessing = 0;
-                const salesByDate = {};
-                const statusCountsForPie = {}; 
+                // Destructure the payload from our new unified backend route
+                const { totalOrders, totalSales, statusCounts, dailySales, recentOrders } = dashboardRes.data;
 
-                allOrders.forEach(order => {
-                    const price = Number(order.totalPrice) || 0; 
-                    const status = order.status; 
+                // Update UI Metrics
+                setTotalOrders(totalOrders);
+                setTotalSales(totalSales);
+                setSuccessfulOrders(statusCounts['Delivered'] || 0);
+                setCanceledOrders(statusCounts['Cancelled'] || 0);
+                setProcessingOrders(statusCounts['Processing'] || 0);
 
-                    if (status === 'Delivered') dynamicSuccessful++;
-                    if (status === 'Cancelled') dynamicCanceled++;
-                    if (status === 'Processing') dynamicProcessing++; 
-
-                    if (!statusCountsForPie[status]) {
-                        statusCountsForPie[status] = 0;
-                    }
-                    statusCountsForPie[status]++; 
-
-                    if (status !== 'Cancelled') {
-                        dynamicTotalSales += price; 
-
-                        const dateStr = new Date(order.dateOrdered).toLocaleDateString();
-                        if (salesByDate[dateStr]) {
-                            salesByDate[dateStr] += price;
-                        } else {
-                            salesByDate[dateStr] = price;
-                        }
-                    }
-                });
-
-                setTotalOrders(allOrders.length);
-                setTotalSales(dynamicTotalSales);
-                setSuccessfulOrders(dynamicSuccessful);
-                setCanceledOrders(dynamicCanceled);
-                setProcessingOrders(dynamicProcessing);
-
-                const formattedStatusData = Object.keys(statusCountsForPie).map(status => ({
+                // Format Pie Chart Data
+                const formattedStatusData = Object.keys(statusCounts).map(status => ({
                     name: status,
-                    value: statusCountsForPie[status]
+                    value: statusCounts[status]
                 }));
                 setStatusData(formattedStatusData); 
 
-                let formattedChartData = Object.keys(salesByDate).map(date => ({
-                    date: date,
-                    Sales: salesByDate[date]
+                // Format Area Chart Data
+                let formattedChartData = dailySales.map(day => ({
+                    date: day._id,
+                    Sales: day.totalSales
                 }));
 
+                // The "Day 1" Chart Fix
                 if (formattedChartData.length === 1) {
-                    formattedChartData = [
-                        { date: "Previous", Sales: 0 },
-                        formattedChartData[0]
-                    ];
+                    formattedChartData = [{ date: "Previous", Sales: 0 }, formattedChartData[0]];
                 } else if (formattedChartData.length === 0) {
                     formattedChartData = [{ date: "No Data", Sales: 0 }];
                 }
 
                 setChartData(formattedChartData);
-                setRecentOrders(allOrders.slice(0, 5));
+                setRecentOrders(recentOrders);
                 setLoading(false);
             } catch (error) {
                 console.error("Dashboard fetch error:", error);
                 toast.error("Failed to load dashboard metrics");
                 setLoading(false);
             }
-        };
+        };    
 
         fetchDashboardData();
     }, []);
