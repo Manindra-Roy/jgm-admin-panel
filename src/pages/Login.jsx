@@ -11,31 +11,27 @@ export default function Login() {
     
     const navigate = useNavigate();
 
+    // Inside src/pages/Login.jsx, update handleLogin:
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
         try {
-            // Send credentials to your backend
-            const response = await api.post('/users/login', {
-                email: email,
-                password: password
-            });
-
-            // Save the token to the browser's Local Storage
-            localStorage.setItem('jgm_admin_token', response.data.token);
+            await api.post('/users/login', { email, password });
             
-            // Send the admin to the main dashboard
+            // Set a simple flag so React knows we are logged in
+            localStorage.setItem('is_authenticated', 'true');
+            // Clean up the old insecure token just in case!
+            localStorage.removeItem('jgm_admin_token'); 
+            
             navigate('/');
         } catch (err) {
-            // Your backend sends a 400 status if password/email is wrong
             setError('Invalid email or password. Access Denied.');
         } finally {
             setLoading(false);
         }
     };
-
     return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#1a1a2e' }}>
             <div style={{ backgroundColor: '#16213e', padding: '40px', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', width: '100%', maxWidth: '400px' }}>

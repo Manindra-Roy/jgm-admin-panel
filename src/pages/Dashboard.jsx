@@ -3,34 +3,28 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { FaRupeeSign, FaClipboardList, FaBoxOpen, FaUsers, FaChartLine } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 export default function Dashboard() {
-    const [stats, setStats] = useState({
-        totalSales: 0,
-        orderCount: 0,
-        productCount: 0,
-        userCount: 0
-    });
+    const [stats, setStats] = useState({ totalSales: 0, orderCount: 0, productCount: 0, userCount: 0 });
     const [recentOrders, setRecentOrders] = useState([]);
+    const [chartData, setChartData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                // Fetch all stats concurrently to reduce loading time
+                // Fetch all stats concurrently
                 const [
-                    salesRes, 
-                    ordersCountRes, 
-                    productsCountRes, 
-                    usersCountRes,
-                    recentOrdersRes
+                    salesRes, ordersCountRes, productsCountRes, usersCountRes, recentOrdersRes, chartDataRes
                 ] = await Promise.all([
                     api.get('/orders/get/totalsales'),
                     api.get('/orders/get/count'),
                     api.get('/products/get/count'),
                     api.get('/users/get/count'),
-                    api.get('/orders') // Fetch orders to slice the most recent
+                    api.get('/orders'),
+                    api.get('/orders/get/salesbyday') // <--- New Chart API Call
                 ]);
 
                 setStats({
@@ -40,8 +34,8 @@ export default function Dashboard() {
                     userCount: usersCountRes.data.userCount || 0
                 });
 
-                // Grab only the top 5 most recent orders
                 setRecentOrders(recentOrdersRes.data.slice(0, 5));
+                setChartData(chartDataRes.data);
                 setLoading(false);
             } catch (err) {
                 console.error(err);
@@ -55,7 +49,7 @@ export default function Dashboard() {
 
     if (loading) return <h2 style={{ padding: '40px', color: 'white' }}>Compiling JGM Data...</h2>;
 
-    // Helper for metric cards
+    // Helper for top metric cards
     const MetricCard = ({ title, value, icon, color, bg }) => (
         <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', flex: '1', minWidth: '220px' }}>
             <div style={{ backgroundColor: bg, color: color, width: '60px', height: '60px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem' }}>
@@ -77,6 +71,24 @@ export default function Dashboard() {
         }
     };
 
+    // Custom Tooltip for the Chart
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="glass-panel" style={{ padding: '15px', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <p style={{ margin: '0 0 10px 0', color: '#94a3b8', fontWeight: 'bold' }}>{label}</p>
+                    <p style={{ margin: 0, color: '#2ecc71', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                        ₹{payload[0].value.toLocaleString('en-IN')}
+                    </p>
+                    <p style={{ margin: '5px 0 0 0', color: '#cbd5e1', fontSize: '0.85rem' }}>
+                        {payload[0].payload.orders} Orders Placed
+                    </p>
+                </div>
+            );
+        }
+        return null;
+    };
+
     return (
         <div style={{ padding: '40px 40px 40px 20px' }}>
             <h1 style={{ marginBottom: '10px', color: '#fff', fontWeight: '300', fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -88,34 +100,49 @@ export default function Dashboard() {
 
             {/* TOP METRICS ROW */}
             <div style={{ display: 'flex', gap: '25px', flexWrap: 'wrap', marginBottom: '40px' }}>
-                <MetricCard 
-                    title="Total Sales" 
-                    value={`₹${stats.totalSales.toLocaleString('en-IN')}`} 
-                    icon={<FaRupeeSign />} 
-                    color="#2ecc71" 
-                    bg="rgba(46, 204, 113, 0.15)" 
-                />
-                <MetricCard 
-                    title="Total Orders" 
-                    value={stats.orderCount.toLocaleString('en-IN')} 
-                    icon={<FaClipboardList />} 
-                    color="#e67e22" 
-                    bg="rgba(230, 126, 34, 0.15)" 
-                />
-                <MetricCard 
-                    title="Active Products" 
-                    value={stats.productCount.toLocaleString('en-IN')} 
-                    icon={<FaBoxOpen />} 
-                    color="#3498db" 
-                    bg="rgba(52, 152, 219, 0.15)" 
-                />
-                <MetricCard 
-                    title="Registered Users" 
-                    value={stats.userCount.toLocaleString('en-IN')} 
-                    icon={<FaUsers />} 
-                    color="#9b59b6" 
-                    bg="rgba(155, 89, 182, 0.15)" 
-                />
+                <MetricCard title="Total Sales" value={`₹${stats.totalSales.toLocaleString('en-IN')}`} icon={<FaRupeeSign />} color="#2ecc71" bg="rgba(46, 204, 113, 0.15)" />
+                <MetricCard title="Total Orders" value={stats.orderCount.toLocaleString('en-IN')} icon={<FaClipboardList />} color="#e67e22" bg="rgba(230, 126, 34, 0.15)" />
+                <MetricCard title="Active Products" value={stats.productCount.toLocaleString('en-IN')} icon={<FaBoxOpen />} color="#3498db" bg="rgba(52, 152, 219, 0.15)" />
+                <MetricCard title="Registered Users" value={stats.userCount.toLocaleString('en-IN')} icon={<FaUsers />} color="#9b59b6" bg="rgba(155, 89, 182, 0.15)" />
+            </div>
+
+            {/* CHART SECTION */}
+            <div className="glass-panel" style={{ padding: '30px', marginBottom: '40px', height: '400px' }}>
+                <h3 style={{ margin: '0 0 25px 0', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Revenue Trend (Last 14 Active Days)</h3>
+                
+                {chartData.length === 0 ? (
+                    <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#94a3b8' }}>
+                        No sales data available yet.
+                    </div>
+                ) : (
+                    <ResponsiveContainer width="100%" height="85%">
+                        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#2ecc71" stopOpacity={0.4}/>
+                                    <stop offset="95%" stopColor="#2ecc71" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                            <XAxis 
+                                dataKey="date" 
+                                stroke="#94a3b8" 
+                                tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                                tickLine={false}
+                                axisLine={false}
+                            />
+                            <YAxis 
+                                stroke="#94a3b8" 
+                                tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                                tickFormatter={(value) => `₹${value}`}
+                                tickLine={false}
+                                axisLine={false}
+                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1, strokeDasharray: '5 5' }} />
+                            <Area type="monotone" dataKey="sales" stroke="#2ecc71" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                )}
             </div>
 
             {/* RECENT ORDERS SECTION */}
@@ -143,7 +170,7 @@ export default function Dashboard() {
                                 const style = getStatusStyle(order.status);
                                 return (
                                     <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <td style={{ padding: '15px 10px', fontSize: '0.85em', color: '#94a3b8', fontFamily: 'monospace' }}>{order.id.substring(0, 10)}...</td>
+                                        <td style={{ padding: '15px 10px', fontSize: '0.85em', color: '#94a3b8', fontFamily: 'monospace' }}>{order.id}</td>
                                         <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>{order.user?.name || 'Guest'}</td>
                                         <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>{new Date(order.dateOrdered).toLocaleDateString('en-IN')}</td>
                                         <td style={{ padding: '15px 10px', color: '#2ecc71', fontWeight: 'bold' }}>₹{order.totalPrice?.toLocaleString('en-IN') || 0}</td>

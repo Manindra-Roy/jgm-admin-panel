@@ -1,13 +1,17 @@
 // src/pages/Orders.jsx
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FaTrash, FaClipboardList, FaEye, FaTimes } from 'react-icons/fa';
+import toast from 'react-hot-toast';
+import { FaTrash, FaClipboardList, FaEye, FaTimes, FaSearch, FaFilter } from 'react-icons/fa';
 
 export default function Orders() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     
+    // Search & Filter State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+
     // Modal State
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,7 +23,7 @@ export default function Orders() {
             setOrders(response.data);
             setLoading(false);
         } catch (err) {
-            setError('Failed to load orders.');
+            toast.error('Failed to load orders.');
             setLoading(false);
         }
     };
@@ -31,37 +35,53 @@ export default function Orders() {
     const handleStatusChange = async (orderId, newStatus) => {
         try {
             await api.put(`/orders/${orderId}`, { status: newStatus });
+            toast.success(`Order status updated to ${newStatus}`);
             fetchOrders(); 
-            // Update modal state if it's currently open
             if (selectedOrder && selectedOrder.id === orderId) {
                 setSelectedOrder(prev => ({ ...prev, status: newStatus }));
             }
         } catch (err) {
-            alert('Failed to update order status.');
+            toast.error('Failed to update order status.');
         }
     };
 
     const handleDelete = async (orderId) => {
-        if (window.confirm('Are you sure you want to completely delete this order record?')) {
-            try {
-                await api.delete(`/orders/${orderId}`);
-                fetchOrders();
-                if (selectedOrder && selectedOrder.id === orderId) closeModal();
-            } catch (err) {
-                alert('Failed to delete order.');
-            }
-        }
+        toast((t) => (
+            <div>
+                <p style={{ marginBottom: '10px' }}>Permanently delete this order record?</p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                        onClick={async () => {
+                            toast.dismiss(t.id);
+                            try {
+                                await api.delete(`/orders/${orderId}`);
+                                toast.success('Order deleted');
+                                fetchOrders();
+                                if (selectedOrder && selectedOrder.id === orderId) closeModal();
+                            } catch (err) {
+                                toast.error('Failed to delete order.');
+                            }
+                        }}
+                        style={{ backgroundColor: '#e74c3c', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                        Delete
+                    </button>
+                    <button onClick={() => toast.dismiss(t.id)} style={{ backgroundColor: '#475569', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        ), { duration: 5000 });
     };
 
     const viewOrderDetails = async (orderId) => {
         setIsModalOpen(true);
         setLoadingDetails(true);
         try {
-            // The backend GET /:id route populates the orderItems and product details
             const response = await api.get(`/orders/${orderId}`);
             setSelectedOrder(response.data);
         } catch (err) {
-            alert('Failed to fetch order details.');
+            toast.error('Failed to fetch order details.');
             setIsModalOpen(false);
         } finally {
             setLoadingDetails(false);
@@ -82,6 +102,17 @@ export default function Orders() {
         }
     };
 
+    // --- FRONTEND FILTERING LOGIC ---
+    const filteredOrders = orders.filter(order => {
+        const matchesSearch = 
+            order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            (order.user?.name || 'Guest').toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
+        
+        return matchesSearch && matchesStatus;
+    });
+
     if (loading) return <h2 style={{ padding: '40px', color: 'white' }}>Loading Order History...</h2>;
 
     return (
@@ -89,10 +120,38 @@ export default function Orders() {
             <h1 style={{ marginBottom: '40px', color: '#fff', fontWeight: '300', fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <FaClipboardList style={{ color: '#e67e22' }} /> Order Fulfillment
             </h1>
-            
-            {error && <p style={{ color: 'white', backgroundColor: 'rgba(231, 76, 60, 0.8)', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e74c3c' }}>{error}</p>}
 
             <div className="glass-panel" style={{ padding: '30px', overflowX: 'auto' }}>
+                
+                {/* SEARCH & FILTER CONTROLS */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '8px 15px', border: '1px solid rgba(255,255,255,0.1)', flex: 1, maxWidth: '400px' }}>
+                        <FaSearch color="#94a3b8" />
+                        <input 
+                            type="text" 
+                            placeholder="Search by Order ID or Customer Name..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{ background: 'transparent', border: 'none', color: 'white', paddingLeft: '10px', outline: 'none', width: '100%' }}
+                        />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <FaFilter color="#94a3b8" />
+                        <select 
+                            value={statusFilter} 
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="glass-input"
+                            style={{ padding: '8px 15px', minWidth: '150px', appearance: 'none', cursor: 'pointer' }}
+                        >
+                            <option value="All" style={{ color: 'black' }}>All Statuses</option>
+                            <option value="Pending" style={{ color: 'black' }}>Pending</option>
+                            <option value="Shipped" style={{ color: 'black' }}>Shipped</option>
+                            <option value="Delivered" style={{ color: 'black' }}>Delivered</option>
+                        </select>
+                    </div>
+                </div>
+
                 <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: '#e2e8f0' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -105,10 +164,10 @@ export default function Orders() {
                         </tr>
                     </thead>
                     <tbody>
-                        {orders.length === 0 ? (
-                            <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No orders have been placed yet.</td></tr>
+                        {filteredOrders.length === 0 ? (
+                            <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No matching orders found.</td></tr>
                         ) : (
-                            orders.map((order) => {
+                            filteredOrders.map((order) => {
                                 const statusStyle = getStatusStyle(order.status);
                                 return (
                                     <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -129,16 +188,9 @@ export default function Orders() {
                                                 value={order.status} 
                                                 onChange={(e) => handleStatusChange(order.id, e.target.value)}
                                                 style={{ 
-                                                    padding: '8px 12px', 
-                                                    borderRadius: '8px',
-                                                    border: `1px solid ${statusStyle.border}`,
-                                                    backgroundColor: statusStyle.bg,
-                                                    color: statusStyle.color,
-                                                    fontWeight: 'bold',
-                                                    cursor: 'pointer',
-                                                    outline: 'none',
-                                                    appearance: 'none',
-                                                    textAlign: 'center'
+                                                    padding: '8px 12px', borderRadius: '8px', border: `1px solid ${statusStyle.border}`,
+                                                    backgroundColor: statusStyle.bg, color: statusStyle.color, fontWeight: 'bold',
+                                                    cursor: 'pointer', outline: 'none', appearance: 'none', textAlign: 'center'
                                                 }}
                                             >
                                                 <option value="Pending" style={{ color: 'black' }}>Pending</option>
@@ -147,22 +199,10 @@ export default function Orders() {
                                             </select>
                                         </td>
                                         <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                            <button 
-                                                onClick={() => viewOrderDetails(order.id)} 
-                                                style={{ backgroundColor: 'transparent', color: '#3498db', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s', marginRight: '10px' }}
-                                                title="View Details"
-                                                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.2)'} 
-                                                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                            >
+                                            <button onClick={() => viewOrderDetails(order.id)} style={{ backgroundColor: 'transparent', color: '#3498db', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s', marginRight: '10px' }} title="View Details">
                                                 <FaEye />
                                             </button>
-                                            <button 
-                                                onClick={() => handleDelete(order.id)} 
-                                                style={{ backgroundColor: 'transparent', color: '#e74c3c', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s' }}
-                                                title="Delete Order"
-                                                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.2)'} 
-                                                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                            >
+                                            <button onClick={() => handleDelete(order.id)} style={{ backgroundColor: 'transparent', color: '#e74c3c', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s' }} title="Delete Order">
                                                 <FaTrash />
                                             </button>
                                         </td>
@@ -174,23 +214,16 @@ export default function Orders() {
                 </table>
             </div>
 
-            {/* ORDER DETAILS MODAL */}
+            {/* ORDER DETAILS MODAL (UNCHANGED) */}
             {isModalOpen && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
                     <div className="glass-panel" style={{ width: '90%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '30px', position: 'relative', backgroundColor: '#16213e' }}>
-                        
-                        <button onClick={closeModal} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}>
-                            <FaTimes />
-                        </button>
-
+                        <button onClick={closeModal} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}><FaTimes /></button>
                         <h2 style={{ marginTop: 0, color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '15px' }}>Order Details</h2>
-
                         {loadingDetails ? (
                             <p style={{ color: '#94a3b8' }}>Fetching items...</p>
                         ) : selectedOrder ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', color: '#e2e8f0' }}>
-                                
-                                {/* Shipping Info */}
                                 <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px' }}>
                                     <h4 style={{ margin: '0 0 10px 0', color: '#3498db' }}>Shipping Information</h4>
                                     <p style={{ margin: '5px 0' }}><strong>Name:</strong> {selectedOrder.user?.name || 'Guest'}</p>
@@ -198,8 +231,6 @@ export default function Orders() {
                                     <p style={{ margin: '5px 0' }}><strong>Address:</strong> {selectedOrder.shippingAddress1} {selectedOrder.shippingAddress2 && `, ${selectedOrder.shippingAddress2}`}</p>
                                     <p style={{ margin: '5px 0' }}><strong>Location:</strong> {selectedOrder.city}, {selectedOrder.zip}, {selectedOrder.country}</p>
                                 </div>
-
-                                {/* Order Items */}
                                 <div>
                                     <h4 style={{ margin: '0 0 10px 0', color: '#3498db' }}>Purchased Items</h4>
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -225,18 +256,13 @@ export default function Orders() {
                                         <tfoot>
                                             <tr>
                                                 <td colSpan="2" style={{ textAlign: 'right', padding: '15px 10px', fontWeight: 'bold' }}>Total:</td>
-                                                <td style={{ textAlign: 'right', padding: '15px 10px', fontWeight: 'bold', color: '#2ecc71', fontSize: '1.2rem' }}>
-                                                    ₹{selectedOrder.totalPrice?.toLocaleString('en-IN')}
-                                                </td>
+                                                <td style={{ textAlign: 'right', padding: '15px 10px', fontWeight: 'bold', color: '#2ecc71', fontSize: '1.2rem' }}>₹{selectedOrder.totalPrice?.toLocaleString('en-IN')}</td>
                                             </tr>
                                         </tfoot>
                                     </table>
                                 </div>
-
                             </div>
-                        ) : (
-                            <p style={{ color: '#e74c3c' }}>Failed to load data.</p>
-                        )}
+                        ) : <p style={{ color: '#e74c3c' }}>Failed to load data.</p>}
                     </div>
                 </div>
             )}

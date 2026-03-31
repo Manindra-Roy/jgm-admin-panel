@@ -1,16 +1,17 @@
 // src/pages/Products.jsx
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FaTrash, FaImage, FaBoxOpen, FaEdit, FaStar } from 'react-icons/fa';
+import toast from 'react-hot-toast';
+import { FaTrash, FaImage, FaBoxOpen, FaEdit, FaStar, FaSearch } from 'react-icons/fa';
 
 export default function Products() {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [uploading, setUploading] = useState(false);
 
-    // Pagination State
+    // Search & Pagination State
+    const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const limit = 10;
 
@@ -28,35 +29,39 @@ export default function Products() {
     const fetchData = async () => {
         setLoading(true);
         try {
+            // Append the search term to the API request
             const [productsRes, categoriesRes] = await Promise.all([
-                api.get(`/products?page=${page}&limit=${limit}`),
+                api.get(`/products?page=${page}&limit=${limit}&search=${searchTerm}`),
                 api.get('/categories')
             ]);
             setProducts(productsRes.data);
             setCategories(categoriesRes.data);
             setLoading(false);
         } catch (err) {
-            setError('Failed to load inventory data.');
+            toast.error('Failed to load inventory data.');
             setLoading(false);
         }
     };
 
+    // Re-fetch when page OR searchTerm changes
     useEffect(() => {
-        fetchData();
-    }, [page]);
+        // Simple debounce: wait 500ms after user stops typing to search
+        const delaySearch = setTimeout(() => {
+            fetchData();
+        }, 500);
+        return () => clearTimeout(delaySearch);
+    }, [page, searchTerm]);
 
-    // Populate form for editing
     const handleEditClick = (product) => {
         setEditingId(product.id);
         setName(product.name);
         setDescription(product.description);
         setPrice(product.price);
-        // If category is populated object, extract ID, otherwise use as is
         setCategory(product.category?.id || product.category || '');
         setCountInStock(product.countInStock);
         setBrand(product.brand || '');
         setIsFeatured(product.isFeatured || false);
-        setImage(null); // Force user to re-select image if they want to change it
+        setImage(null); 
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -64,20 +69,19 @@ export default function Products() {
         setEditingId(null);
         setName(''); setDescription(''); setPrice(''); setCategory(''); 
         setCountInStock(''); setBrand(''); setIsFeatured(false); setImage(null);
-        setError('');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
         setUploading(true);
 
         if (!category) {
-            setError('Please assign a category to this item.');
+            toast.error('Please assign a category to this item.');
             setUploading(false);
             return;
         }
 
+        // --- REVERTED TO BACKEND UPLOAD LOGIC ---
         const formData = new FormData();
         formData.append('name', name);
         formData.append('description', description);
@@ -86,55 +90,76 @@ export default function Products() {
         formData.append('countInStock', countInStock);
         formData.append('brand', brand);
         formData.append('isFeatured', isFeatured);
-        if (image) formData.append('image', image); // Only append if new image selected
+        if (image) formData.append('image', image);
 
         try {
             if (editingId) {
-                // Update existing
                 await api.put(`/products/${editingId}`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
+                toast.success('Product updated successfully!');
             } else {
-                // Create new
                 await api.post('/products', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
+                toast.success('Product added to inventory!');
             }
             
-            handleCancelEdit(); // Reset form
+            handleCancelEdit();
             
+            // Jump to page 1 if adding new, else just refresh current page
             if (page !== 1 && !editingId) {
-                setPage(1); // Jump to page 1 to see new items
+                setPage(1); 
             } else {
                 fetchData(); 
             }
         } catch (err) {
-            setError(`Failed to ${editingId ? 'update' : 'upload'} item. Check network connections.`);
+            console.error(err);
+            toast.error(`Failed to ${editingId ? 'update' : 'upload'} item. Check network connections.`);
         } finally {
             setUploading(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to permanently delete this item?')) {
-            try {
-                await api.delete(`/products/${id}`);
-                fetchData();
-            } catch (err) {
-                alert('Failed to delete item. Ensure backend routes are updated.');
-            }
-        }
+        toast(
+            (t) => (
+                <div>
+                    <p style={{ marginBottom: '10px' }}>Permanently delete this item?</p>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button 
+                            onClick={async () => {
+                                toast.dismiss(t.id);
+                                try {
+                                    await api.delete(`/products/${id}`);
+                                    toast.success('Item deleted');
+                                    fetchData();
+                                } catch (err) {
+                                    toast.error('Failed to delete item.');
+                                }
+                            }}
+                            style={{ backgroundColor: '#e74c3c', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                            Delete
+                        </button>
+                        <button 
+                            onClick={() => toast.dismiss(t.id)}
+                            style={{ backgroundColor: '#475569', color: 'white', padding: '5px 10px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            ),
+            { duration: 5000 }
+        );
     };
-
-    if (loading && products.length === 0) return <h2 style={{ padding: '40px', color: 'white' }}>Loading System Inventory...</h2>;
 
     return (
         <div style={{ padding: '40px 40px 40px 20px' }}>
             <h1 style={{ marginBottom: '40px', color: '#fff', fontWeight: '300', fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <FaBoxOpen style={{ color: '#3498db' }} /> Item Management
             </h1>
-            
-            {error && <p style={{ color: 'white', backgroundColor: 'rgba(231, 76, 60, 0.8)', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e74c3c' }}>{error}</p>}
 
             <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 
@@ -189,9 +214,27 @@ export default function Products() {
                     </form>
                 </div>
 
-                {/* ITEM LIST TABLE WITH PAGINATION */}
+                {/* ITEM LIST TABLE */}
                 <div className="glass-panel" style={{ padding: '30px', flex: '2', minWidth: '500px', overflowX: 'auto', display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={{ marginBottom: '25px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Active Database</h3>
+                    
+                    {/* Header & Search Bar */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
+                        <h3 style={{ margin: 0, color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Active Database</h3>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '8px 15px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <FaSearch color="#94a3b8" />
+                            <input 
+                                type="text" 
+                                placeholder="Search products..." 
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setPage(1); // Reset to page 1 when searching
+                                }}
+                                style={{ background: 'transparent', border: 'none', color: 'white', paddingLeft: '10px', outline: 'none' }}
+                            />
+                        </div>
+                    </div>
                     
                     <div style={{ flex: 1 }}>
                         <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: '#e2e8f0' }}>
@@ -206,7 +249,9 @@ export default function Products() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {products.length === 0 ? (
+                                {loading ? (
+                                    <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>Searching...</td></tr>
+                                ) : products.length === 0 ? (
                                     <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No records found.</td></tr>
                                 ) : (
                                     products.map((product) => (

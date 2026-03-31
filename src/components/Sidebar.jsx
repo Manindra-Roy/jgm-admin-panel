@@ -1,5 +1,6 @@
 // src/components/Sidebar.jsx
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import api from '../services/api'; // <--- THIS WAS MISSING
 import {
   FaHome,
   FaBox,
@@ -13,9 +14,17 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    localStorage.removeItem("jgm_admin_token");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+        // Tell the backend to destroy the secure cookie
+        await api.post('/users/logout');
+    } catch (error) {
+        console.error("Backend logout failed:", error);
+    } finally {
+        // ALWAYS lock the frontend router and redirect, even if backend fails
+        localStorage.removeItem('is_authenticated');
+        navigate("/login");
+    }
   };
 
   const navItems = [
