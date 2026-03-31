@@ -1,45 +1,130 @@
 // src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FaRupeeSign, FaClipboardList, FaBoxOpen, FaUsers, FaChartLine } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import toast from 'react-hot-toast';
+import { 
+    FaMoneyBillWave, 
+    FaClipboardList, 
+    FaBoxOpen, 
+    FaUsers, 
+    FaCheckCircle, 
+    FaTimesCircle, 
+    FaChartLine,
+    FaHourglassHalf
+} from 'react-icons/fa';
+import { 
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell, Legend
+} from 'recharts';
 
 export default function Dashboard() {
-    const [stats, setStats] = useState({ totalSales: 0, orderCount: 0, productCount: 0, userCount: 0 });
-    const [recentOrders, setRecentOrders] = useState([]);
+    const STATUS_COLORS = {
+        'Delivered': '#2ecc71',
+        'Processing': '#9b59b6',
+        'Cancelled': '#e74c3c',
+        'Shipped': '#3498db',
+        'Pending': '#f1c40f',
+        'Out for Delivery': '#1abc9c',
+        'Default': '#95a5a6'
+    };
+
+    // Metric State
+    const [totalSales, setTotalSales] = useState(0);
+    const [totalOrders, setTotalOrders] = useState(0);
+    const [activeProducts, setActiveProducts] = useState(0);
+    const [registeredUsers, setRegisteredUsers] = useState(0);
+    const [successfulOrders, setSuccessfulOrders] = useState(0);
+    const [canceledOrders, setCanceledOrders] = useState(0);
+    const [processingOrders, setProcessingOrders] = useState(0);
+
+    // Chart & Table State
     const [chartData, setChartData] = useState([]);
+    const [recentOrders, setRecentOrders] = useState([]);
+    const [statusData, setStatusData] = useState([]); 
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                // Fetch all stats concurrently
                 const [
-                    salesRes, ordersCountRes, productsCountRes, usersCountRes, recentOrdersRes, chartDataRes
+                    productsRes, 
+                    usersRes,
+                    allOrdersRes 
                 ] = await Promise.all([
-                    api.get('/orders/get/totalsales'),
-                    api.get('/orders/get/count'),
                     api.get('/products/get/count'),
                     api.get('/users/get/count'),
-                    api.get('/orders'),
-                    api.get('/orders/get/salesbyday') // <--- New Chart API Call
+                    api.get('/orders') 
                 ]);
 
-                setStats({
-                    totalSales: salesRes.data.totalsales || 0,
-                    orderCount: ordersCountRes.data.orderCount || 0,
-                    productCount: productsCountRes.data.productCount || 0,
-                    userCount: usersCountRes.data.userCount || 0
+                setActiveProducts(productsRes.data.productCount || 0);
+                setRegisteredUsers(usersRes.data.userCount || 0);
+
+                const allOrders = allOrdersRes.data;
+                
+                let dynamicTotalSales = 0;
+                let dynamicSuccessful = 0;
+                let dynamicCanceled = 0;
+                let dynamicProcessing = 0;
+                const salesByDate = {};
+                const statusCountsForPie = {}; 
+
+                allOrders.forEach(order => {
+                    const price = Number(order.totalPrice) || 0; 
+                    const status = order.status; 
+
+                    if (status === 'Delivered') dynamicSuccessful++;
+                    if (status === 'Cancelled') dynamicCanceled++;
+                    if (status === 'Processing') dynamicProcessing++; 
+
+                    if (!statusCountsForPie[status]) {
+                        statusCountsForPie[status] = 0;
+                    }
+                    statusCountsForPie[status]++; 
+
+                    if (status !== 'Cancelled') {
+                        dynamicTotalSales += price; 
+
+                        const dateStr = new Date(order.dateOrdered).toLocaleDateString();
+                        if (salesByDate[dateStr]) {
+                            salesByDate[dateStr] += price;
+                        } else {
+                            salesByDate[dateStr] = price;
+                        }
+                    }
                 });
 
-                setRecentOrders(recentOrdersRes.data.slice(0, 5));
-                setChartData(chartDataRes.data);
+                setTotalOrders(allOrders.length);
+                setTotalSales(dynamicTotalSales);
+                setSuccessfulOrders(dynamicSuccessful);
+                setCanceledOrders(dynamicCanceled);
+                setProcessingOrders(dynamicProcessing);
+
+                const formattedStatusData = Object.keys(statusCountsForPie).map(status => ({
+                    name: status,
+                    value: statusCountsForPie[status]
+                }));
+                setStatusData(formattedStatusData); 
+
+                let formattedChartData = Object.keys(salesByDate).map(date => ({
+                    date: date,
+                    Sales: salesByDate[date]
+                }));
+
+                if (formattedChartData.length === 1) {
+                    formattedChartData = [
+                        { date: "Previous", Sales: 0 },
+                        formattedChartData[0]
+                    ];
+                } else if (formattedChartData.length === 0) {
+                    formattedChartData = [{ date: "No Data", Sales: 0 }];
+                }
+
+                setChartData(formattedChartData);
+                setRecentOrders(allOrders.slice(0, 5));
                 setLoading(false);
-            } catch (err) {
-                console.error(err);
-                setError('Failed to load dashboard metrics. Ensure backend is running.');
+            } catch (error) {
+                console.error("Dashboard fetch error:", error);
+                toast.error("Failed to load dashboard metrics");
                 setLoading(false);
             }
         };
@@ -47,47 +132,19 @@ export default function Dashboard() {
         fetchDashboardData();
     }, []);
 
-    if (loading) return <h2 style={{ padding: '40px', color: 'white' }}>Compiling JGM Data...</h2>;
-
-    // Helper for top metric cards
-    const MetricCard = ({ title, value, icon, color, bg }) => (
-        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', flex: '1', minWidth: '220px' }}>
-            <div style={{ backgroundColor: bg, color: color, width: '60px', height: '60px', borderRadius: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem' }}>
-                {icon}
-            </div>
-            <div>
-                <p style={{ margin: '0 0 5px 0', color: '#94a3b8', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>{title}</p>
-                <h2 style={{ margin: 0, color: '#fff', fontSize: '1.8rem' }}>{value}</h2>
-            </div>
-        </div>
-    );
-
     const getStatusStyle = (status) => {
         switch(status) {
-            case 'Pending': return { color: '#f1c40f', bg: 'rgba(241, 196, 15, 0.1)' };
-            case 'Shipped': return { color: '#3498db', bg: 'rgba(52, 152, 219, 0.1)' };
-            case 'Delivered': return { color: '#2ecc71', bg: 'rgba(46, 204, 113, 0.1)' };
-            default: return { color: '#95a5a6', bg: 'rgba(149, 165, 166, 0.1)' };
+            case 'Pending': return { bg: 'rgba(241, 196, 15, 0.2)', color: '#f1c40f', border: 'rgba(241, 196, 15, 0.5)' };
+            case 'Processing': return { bg: 'rgba(155, 89, 182, 0.2)', color: '#9b59b6', border: 'rgba(155, 89, 182, 0.5)' };
+            case 'Shipped': return { bg: 'rgba(52, 152, 219, 0.2)', color: '#3498db', border: 'rgba(52, 152, 219, 0.5)' };
+            case 'Out for Delivery': return { bg: 'rgba(26, 188, 156, 0.2)', color: '#1abc9c', border: 'rgba(26, 188, 156, 0.5)' };
+            case 'Delivered': return { bg: 'rgba(46, 204, 113, 0.2)', color: '#2ecc71', border: 'rgba(46, 204, 113, 0.5)' };
+            case 'Cancelled': return { bg: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', border: 'rgba(231, 76, 60, 0.5)' };
+            default: return { bg: 'rgba(149, 165, 166, 0.2)', color: '#95a5a6', border: 'rgba(149, 165, 166, 0.5)' };
         }
     };
 
-    // Custom Tooltip for the Chart
-    const CustomTooltip = ({ active, payload, label }) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="glass-panel" style={{ padding: '15px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                    <p style={{ margin: '0 0 10px 0', color: '#94a3b8', fontWeight: 'bold' }}>{label}</p>
-                    <p style={{ margin: 0, color: '#2ecc71', fontSize: '1.2rem', fontWeight: 'bold' }}>
-                        ₹{payload[0].value.toLocaleString('en-IN')}
-                    </p>
-                    <p style={{ margin: '5px 0 0 0', color: '#cbd5e1', fontSize: '0.85rem' }}>
-                        {payload[0].payload.orders} Orders Placed
-                    </p>
-                </div>
-            );
-        }
-        return null;
-    };
+    if (loading) return <h2 style={{ padding: '40px', color: 'white' }}>Loading Dashboard...</h2>;
 
     return (
         <div style={{ padding: '40px 40px 40px 20px' }}>
@@ -96,62 +153,151 @@ export default function Dashboard() {
             </h1>
             <p style={{ color: '#94a3b8', marginBottom: '40px' }}>Welcome to the JGM Industries administration panel.</p>
 
-            {error && <p style={{ color: 'white', backgroundColor: 'rgba(231, 76, 60, 0.8)', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e74c3c' }}>{error}</p>}
-
-            {/* TOP METRICS ROW */}
-            <div style={{ display: 'flex', gap: '25px', flexWrap: 'wrap', marginBottom: '40px' }}>
-                <MetricCard title="Total Sales" value={`₹${stats.totalSales.toLocaleString('en-IN')}`} icon={<FaRupeeSign />} color="#2ecc71" bg="rgba(46, 204, 113, 0.15)" />
-                <MetricCard title="Total Orders" value={stats.orderCount.toLocaleString('en-IN')} icon={<FaClipboardList />} color="#e67e22" bg="rgba(230, 126, 34, 0.15)" />
-                <MetricCard title="Active Products" value={stats.productCount.toLocaleString('en-IN')} icon={<FaBoxOpen />} color="#3498db" bg="rgba(52, 152, 219, 0.15)" />
-                <MetricCard title="Registered Users" value={stats.userCount.toLocaleString('en-IN')} icon={<FaUsers />} color="#9b59b6" bg="rgba(155, 89, 182, 0.15)" />
-            </div>
-
-            {/* CHART SECTION */}
-            <div className="glass-panel" style={{ padding: '30px', marginBottom: '40px', height: '400px' }}>
-                <h3 style={{ margin: '0 0 25px 0', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Revenue Trend (Last 14 Active Days)</h3>
+            {/* METRICS GRID */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '40px' }}>
                 
-                {chartData.length === 0 ? (
-                    <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#94a3b8' }}>
-                        No sales data available yet.
+                <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(46, 204, 113, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#2ecc71' }}><FaMoneyBillWave /></div>
+                    <div>
+                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Sales</p>
+                        <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>₹{totalSales.toLocaleString('en-IN')}</h2>
                     </div>
-                ) : (
-                    <ResponsiveContainer width="100%" height="85%">
-                        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#2ecc71" stopOpacity={0.4}/>
-                                    <stop offset="95%" stopColor="#2ecc71" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                            <XAxis 
-                                dataKey="date" 
-                                stroke="#94a3b8" 
-                                tick={{ fill: '#94a3b8', fontSize: 12 }} 
-                                tickLine={false}
-                                axisLine={false}
-                            />
-                            <YAxis 
-                                stroke="#94a3b8" 
-                                tick={{ fill: '#94a3b8', fontSize: 12 }} 
-                                tickFormatter={(value) => `₹${value}`}
-                                tickLine={false}
-                                axisLine={false}
-                            />
-                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1, strokeDasharray: '5 5' }} />
-                            <Area type="monotone" dataKey="sales" stroke="#2ecc71" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                )}
-            </div>
-
-            {/* RECENT ORDERS SECTION */}
-            <div className="glass-panel" style={{ padding: '30px', overflowX: 'auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                    <h3 style={{ margin: 0, color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Recent Transactions</h3>
-                    <Link to="/orders" style={{ color: '#3498db', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem' }}>View All Orders &rarr;</Link>
                 </div>
 
+                <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(243, 156, 18, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#f39c12' }}><FaClipboardList /></div>
+                    <div>
+                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Orders</p>
+                        <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{totalOrders}</h2>
+                    </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #2ecc71' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(46, 204, 113, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#2ecc71' }}><FaCheckCircle /></div>
+                    <div>
+                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Successful</p>
+                        <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{successfulOrders}</h2>
+                    </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #9b59b6' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(155, 89, 182, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#9b59b6' }}><FaHourglassHalf /></div>
+                    <div>
+                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Processing</p>
+                        <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{processingOrders}</h2>
+                    </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #e74c3c' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(231, 76, 60, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#e74c3c' }}><FaTimesCircle /></div>
+                    <div>
+                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Canceled</p>
+                        <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{canceledOrders}</h2>
+                    </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(52, 152, 219, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#3498db' }}><FaBoxOpen /></div>
+                    <div>
+                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Products</p>
+                        <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{activeProducts}</h2>
+                    </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(108, 92, 231, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#6c5ce7' }}><FaUsers /></div>
+                    <div>
+                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Registered Users</p>
+                        <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{registeredUsers}</h2>
+                    </div>
+                </div>
+
+            </div>
+
+            {/* SIDE-BY-SIDE CHARTS CONTAINER */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+                
+                {/* 1. REVENUE TREND CHART (Now shares row) */}
+                <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Revenue Trend (Last 14 Active Days)</h3>
+                    
+                    {chartData.length === 0 ? (
+                        <div style={{ height: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#94a3b8' }}>
+                            No sales data available.
+                        </div>
+                    ) : (
+                        <div style={{ width: '100%', height: 350, flexGrow: 1 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#2ecc71" stopOpacity={0.8}/>
+                                            <stop offset="95%" stopColor="#2ecc71" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                    <XAxis dataKey="date" stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 12 }} tickMargin={10} />
+                                    <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => `₹${value}`} width={60} />
+                                    <Tooltip contentStyle={{ backgroundColor: '#16213e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#2ecc71', fontWeight: 'bold' }} />
+                                    <Area type="monotone" dataKey="Sales" stroke="#2ecc71" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+                </div>
+
+                {/* 2. PIE CHART SECTION (Now shares row) */}
+                <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Order Status Distribution</h3>
+                    
+                    {statusData.length === 0 ? (
+                        <div style={{ height: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#94a3b8' }}>
+                            No status data available.
+                        </div>
+                    ) : (
+                        <div style={{ width: '100%', height: 350, flexGrow: 1 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={statusData}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        outerRadius={110}
+                                        fill="#8884d8"
+                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                        labelLine={true}
+                                    >
+                                        {statusData.map((entry, index) => (
+                                            <Cell 
+                                                key={`cell-${index}`} 
+                                                fill={STATUS_COLORS[entry.name] || STATUS_COLORS['Default']} 
+                                            />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#16213e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                    />
+                                    <Legend 
+                                        iconType="circle" 
+                                        wrapperStyle={{ color: '#fff' }} 
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+                </div>
+
+            </div>
+
+            {/* RECENT TRANSACTIONS TABLE */}
+            <div className="glass-panel" style={{ padding: '30px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                    <h3 style={{ margin: 0, color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Recent Transactions</h3>
+                    <a href="/orders" style={{ color: '#3498db', textDecoration: 'none', fontSize: '0.9rem' }}>View All Orders &rarr;</a>
+                </div>
+                
                 <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: '#e2e8f0' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -164,23 +310,34 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                         {recentOrders.length === 0 ? (
-                            <tr><td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No recent orders.</td></tr>
+                            <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>No recent orders.</td></tr>
                         ) : (
-                            recentOrders.map(order => {
-                                const style = getStatusStyle(order.status);
+                            recentOrders.map((order) => {
+                                const statusStyle = getStatusStyle(order.status);
                                 return (
                                     <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <td style={{ padding: '15px 10px', fontSize: '0.85em', color: '#94a3b8', fontFamily: 'monospace' }}>{order.id}</td>
-                                        <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>{order.user?.name || 'Guest'}</td>
-                                        <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>{new Date(order.dateOrdered).toLocaleDateString('en-IN')}</td>
-                                        <td style={{ padding: '15px 10px', color: '#2ecc71', fontWeight: 'bold' }}>₹{order.totalPrice?.toLocaleString('en-IN') || 0}</td>
+                                        <td style={{ padding: '15px 10px', fontSize: '0.85em', color: '#94a3b8', fontFamily: 'monospace' }}>
+                                           {order.id.substring(order.id.length - 8).toUpperCase()}
+                                        </td>
+                                        <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>
+                                            {order.user ? order.user.name : 'Guest'}
+                                        </td>
+                                        <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>
+                                            {new Date(order.dateOrdered).toLocaleDateString()}
+                                        </td>
+                                        <td style={{ padding: '15px 10px', color: '#2ecc71', fontWeight: 'bold' }}>
+                                            ₹{order.totalPrice?.toLocaleString('en-IN')}
+                                        </td>
                                         <td style={{ padding: '15px 10px' }}>
-                                            <span style={{ backgroundColor: style.bg, color: style.color, padding: '4px 10px', borderRadius: '6px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                                            <span style={{ 
+                                                padding: '4px 10px', borderRadius: '4px', border: `1px solid ${statusStyle.border}`,
+                                                backgroundColor: statusStyle.bg, color: statusStyle.color, fontWeight: 'bold', fontSize: '0.85em'
+                                            }}>
                                                 {order.status}
                                             </span>
                                         </td>
                                     </tr>
-                                )
+                                );
                             })
                         )}
                     </tbody>
