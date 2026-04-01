@@ -1,25 +1,41 @@
 // src/services/api.js
 import axios from 'axios';
 
+// Create a configured Axios instance
 const api = axios.create({
-    baseURL: 'http://localhost:3000/api/v1',
-    withCredentials: true, // Sends the HttpOnly cookie
+    // Replace with your actual backend URL in production
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
+    
+    // CRITICAL: This allows Axios to send and receive HttpOnly cookies!
+    withCredentials: true, 
+    
+    headers: {
+        'Content-Type': 'application/json'
+    }
 });
 
-// GLOBAL SECURITY INTERCEPTOR
+// Global Response Interceptor
 api.interceptors.response.use(
     (response) => {
-        // If the request succeeds, just pass it through normally
+        // Any status code that lie within the range of 2xx cause this function to trigger
         return response;
     },
     (error) => {
-        // If the backend rejects the cookie (expired or invalid)
-        if (error.response && error.response.status === 401) {
-            console.error("Session expired. Redirecting to login.");
+        // Any status codes that falls outside the range of 2xx cause this function to trigger
+        
+        // Check if the error is due to an expired or missing authentication token
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+            console.warn("Session expired or unauthorized. Redirecting to login...");
+            
+            // Clear local flags
             localStorage.removeItem('is_authenticated');
-            // Forcefully redirect to the login screen
-            window.location.href = '/login'; 
+            
+            // Redirect to login page (only if not already there to prevent loops)
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
         }
+        
         return Promise.reject(error);
     }
 );

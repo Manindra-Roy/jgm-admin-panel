@@ -1,77 +1,119 @@
 // src/components/Sidebar.jsx
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import api from '../services/api'; // <--- THIS WAS MISSING
-import {
-  FaHome,
-  FaBox,
-  FaList,
-  FaShoppingCart,
-  FaUsers,
-  FaSignOutAlt,
-} from "react-icons/fa";
+import { NavLink, useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import toast from 'react-hot-toast';
+import { 
+    FaChartPie, FaBoxOpen, FaTags, FaClipboardList, 
+    FaUsers, FaSignOutAlt 
+} from 'react-icons/fa';
 
 export default function Sidebar() {
-  const navigate = useNavigate();
-  const location = useLocation();
+    const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-        // Tell the backend to destroy the secure cookie
-        await api.post('/users/logout');
-    } catch (error) {
-        console.error("Backend logout failed:", error);
-    } finally {
-        // ALWAYS lock the frontend router and redirect, even if backend fails
-        localStorage.removeItem('is_authenticated');
-        navigate("/login");
-    }
-  };
-
-  const navItems = [
-    { name: "Dashboard", path: "/", icon: <FaHome /> },
-    { name: "Products", path: "/products", icon: <FaBox /> },
-    { name: "Categories", path: "/categories", icon: <FaList /> },
-    { name: "Orders", path: "/orders", icon: <FaShoppingCart /> },
-    { name: "Users", path: "/users", icon: <FaUsers /> },
-  ];
-
-  return (
-    <div className="glass-panel" style={{ width: '260px', margin: '20px', padding: '30px 20px', display: 'flex', flexDirection: 'column' }}>
-            <h2 style={{ textAlign: 'center', marginBottom: '40px', color: '#fff', letterSpacing: '2px', textShadow: '0 2px 10px rgba(255,255,255,0.2)' }}>
-                JGM ADMIN
-            </h2>
+    const handleLogout = async () => {
+        try {
+            // 1. Tell backend to clear the HttpOnly cookie
+            await api.post('/users/logout');
             
-            <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {navItems.map((item) => (
-                    <Link 
-                        key={item.name} 
-                        to={item.path} 
-                        style={{ 
-                            display: 'flex', alignItems: 'center', gap: '15px', padding: '12px 15px', 
-                            borderRadius: '12px', color: '#e2e8f0',
-                            backgroundColor: location.pathname === item.path ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                            boxShadow: location.pathname === item.path ? 'inset 0 0 10px rgba(255,255,255,0.05)' : 'none',
-                            textDecoration: 'none', fontWeight: '500', transition: 'all 0.3s'
-                        }}
-                        onMouseOver={(e) => { if(location.pathname !== item.path) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)' }}
-                        onMouseOut={(e) => { if(location.pathname !== item.path) e.currentTarget.style.backgroundColor = 'transparent' }}
-                    >
-                        <span style={{ fontSize: '1.2rem', color: location.pathname === item.path ? '#3498db' : '#94a3b8' }}>
-                            {item.icon}
-                        </span>
-                        {item.name}
-                    </Link>
-                ))}
+            // 2. Clear local UI flags
+            localStorage.removeItem('is_authenticated');
+            toast.success('Logged out successfully');
+            
+            // 3. Redirect to login
+            navigate('/login', { replace: true });
+        } catch (error) {
+            toast.error('Error during logout');
+            // Force logout anyway on the frontend if backend fails
+            localStorage.removeItem('is_authenticated');
+            navigate('/login', { replace: true });
+        }
+    };
+
+    const navLinkStyle = ({ isActive }) => ({
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        padding: '15px 20px',
+        color: isActive ? '#fff' : '#94a3b8',
+        textDecoration: 'none',
+        backgroundColor: isActive ? 'rgba(52, 152, 219, 0.1)' : 'transparent',
+        borderLeft: isActive ? '4px solid #3498db' : '4px solid transparent',
+        transition: 'all 0.3s ease',
+        fontWeight: isActive ? 'bold' : 'normal',
+        fontSize: '1.1rem'
+    });
+
+    return (
+        <div style={{ 
+            width: '280px', 
+            backgroundColor: '#0f172a', 
+            borderRight: '1px solid rgba(255,255,255,0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: '100vh'
+        }}>
+            <div style={{ 
+                padding: '30px 20px', 
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                marginBottom: '20px'
+            }}>
+                <h2 style={{ 
+                    margin: 0, 
+                    color: '#fff', 
+                    fontSize: '1.8rem',
+                    letterSpacing: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                }}>
+                    <span style={{ color: '#3498db' }}>JGM</span> ADMIN
+                </h2>
+                <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>Management Portal v2.0</p>
+            </div>
+
+            <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <NavLink to="/" style={navLinkStyle} end>
+                    <FaChartPie /> Dashboard
+                </NavLink>
+                <NavLink to="/orders" style={navLinkStyle}>
+                    <FaClipboardList /> Orders
+                </NavLink>
+                <NavLink to="/products" style={navLinkStyle}>
+                    <FaBoxOpen /> Products
+                </NavLink>
+                <NavLink to="/categories" style={navLinkStyle}>
+                    <FaTags /> Categories
+                </NavLink>
+                <NavLink to="/users" style={navLinkStyle}>
+                    <FaUsers /> Users
+                </NavLink>
             </nav>
 
-            <button 
-                onClick={handleLogout}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', backgroundColor: 'rgba(231, 76, 60, 0.2)', color: '#ff7675', border: '1px solid rgba(231, 76, 60, 0.3)', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', justifyContent: 'center', transition: 'all 0.3s' }}
-                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(231, 76, 60, 0.4)' }}
-                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(231, 76, 60, 0.2)' }}
-            >
-                <FaSignOutAlt /> Logout
-            </button>
+            <div style={{ padding: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <button 
+                    onClick={handleLogout}
+                    style={{ 
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px',
+                        padding: '12px',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        color: '#e74c3c',
+                        border: '1px solid rgba(231, 76, 60, 0.3)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: 'bold',
+                        transition: 'all 0.3s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(231, 76, 60, 0.2)'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(231, 76, 60, 0.1)'}
+                >
+                    <FaSignOutAlt /> Secure Logout
+                </button>
+            </div>
         </div>
-  );
+    );
 }

@@ -9,6 +9,10 @@ export default function Users() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const limit = 10;
+
     // Modal & Form State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
@@ -18,23 +22,24 @@ export default function Users() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
-    const [password, setPassword] = useState(''); // Added for new user creation
+    const [password, setPassword] = useState('');
     const [isAdmin, setIsAdmin] = useState(false);
 
     const fetchUsers = async () => {
+        setLoading(true);
         try {
-            const response = await api.get('/users');
+            const response = await api.get(`/users?page=${page}&limit=${limit}`);
             setUsers(response.data);
-            setLoading(false);
         } catch (err) {
             toast.error('Failed to load user directory.');
+        } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
         fetchUsers();
-    }, []);
+    }, [page]);
 
     const handleDelete = async (userId, userIsAdmin) => {
         toast((t) => (
@@ -66,18 +71,16 @@ export default function Users() {
         ), { duration: 5000 });
     };
 
-    // Open Modal for EDITING
     const openEditModal = (user) => {
         setEditingUser(user);
         setName(user.name);
         setEmail(user.email);
         setPhone(user.phone);
-        setPassword(''); // Keep empty, backend will ignore if not provided
+        setPassword(''); 
         setIsAdmin(user.isAdmin);
         setIsModalOpen(true);
     };
 
-    // Open Modal for ADDING new user
     const openAddModal = () => {
         setEditingUser(null);
         setName('');
@@ -99,20 +102,17 @@ export default function Users() {
 
         try {
             if (editingUser) {
-                // Update Existing User
                 const payload = { 
                     name, email, phone, isAdmin,
                     street: editingUser.street, apartment: editingUser.apartment,
                     zip: editingUser.zip, city: editingUser.city, country: editingUser.country
                 };
                 
-                // Only send password if the admin typed a new one
                 if (password) payload.password = password;
 
                 await api.put(`/users/${editingUser.id}`, payload);
                 toast.success('User profile updated!');
             } else {
-                // Create New User
                 await api.post('/users', {
                     name, email, phone, password, isAdmin
                 });
@@ -133,7 +133,7 @@ export default function Users() {
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) return <h2 style={{ padding: '40px', color: 'white' }}>Loading User Directory...</h2>;
+    if (loading && users.length === 0) return <h2 style={{ padding: '40px', color: 'white' }}>Loading User Directory...</h2>;
 
     return (
         <div style={{ padding: '40px 40px 40px 20px', position: 'relative' }}>
@@ -141,7 +141,7 @@ export default function Users() {
                 <FaUser style={{ color: '#3498db' }} /> User Management
             </h1>
 
-            <div className="glass-panel" style={{ padding: '30px', overflowX: 'auto' }}>
+            <div className="glass-panel" style={{ padding: '30px', overflowX: 'auto', display: 'flex', flexDirection: 'column', minHeight: '500px' }}>
                 
                 {/* SEARCH BAR & ADD BUTTON */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
@@ -149,7 +149,7 @@ export default function Users() {
                         <FaSearch color="#94a3b8" />
                         <input 
                             type="text" 
-                            placeholder="Search by Name or Email..." 
+                            placeholder="Search current page..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ background: 'transparent', border: 'none', color: 'white', paddingLeft: '10px', outline: 'none', width: '100%' }}
@@ -164,49 +164,70 @@ export default function Users() {
                     </button>
                 </div>
 
-                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: '#e2e8f0' }}>
-                    <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Name</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Email</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Phone</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Role</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500', textAlign: 'center' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredUsers.length === 0 ? (
-                            <tr><td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No matching users found.</td></tr>
-                        ) : (
-                            filteredUsers.map((user) => (
-                                <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>{user.name}</td>
-                                    <td style={{ padding: '15px 10px', color: '#3498db' }}>{user.email}</td>
-                                    <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>{user.phone}</td>
-                                    <td style={{ padding: '15px 10px' }}>
-                                        {user.isAdmin ? (
-                                            <span style={{ backgroundColor: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', border: '1px solid rgba(231, 76, 60, 0.5)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85em', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                                                <FaUserShield /> Admin
-                                            </span>
-                                        ) : (
-                                            <span style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#e2e8f0', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85em', fontWeight: 'bold' }}>
-                                                Customer
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                        <button onClick={() => openEditModal(user)} style={{ backgroundColor: 'transparent', color: '#3498db', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s', marginRight: '10px' }} title="Edit User">
-                                            <FaEdit />
-                                        </button>
-                                        <button onClick={() => handleDelete(user.id, user.isAdmin)} style={{ backgroundColor: 'transparent', color: '#e74c3c', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s' }} title="Delete User">
-                                            <FaTrash />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                <div style={{ flex: 1 }}>
+                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: '#e2e8f0' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Name</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Email</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Phone</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Role</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500', textAlign: 'center' }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredUsers.length === 0 ? (
+                                <tr><td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No matching users found.</td></tr>
+                            ) : (
+                                filteredUsers.map((user) => (
+                                    <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>{user.name}</td>
+                                        <td style={{ padding: '15px 10px', color: '#3498db' }}>{user.email}</td>
+                                        <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>{user.phone}</td>
+                                        <td style={{ padding: '15px 10px' }}>
+                                            {user.isAdmin ? (
+                                                <span style={{ backgroundColor: 'rgba(231, 76, 60, 0.2)', color: '#e74c3c', border: '1px solid rgba(231, 76, 60, 0.5)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85em', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                                    <FaUserShield /> Admin
+                                                </span>
+                                            ) : (
+                                                <span style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#e2e8f0', border: '1px solid rgba(255, 255, 255, 0.2)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                                                    Customer
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                            <button onClick={() => openEditModal(user)} style={{ backgroundColor: 'transparent', color: '#3498db', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s', marginRight: '10px' }} title="Edit User">
+                                                <FaEdit />
+                                            </button>
+                                            <button onClick={() => handleDelete(user.id, user.isAdmin)} style={{ backgroundColor: 'transparent', color: '#e74c3c', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s' }} title="Delete User">
+                                                <FaTrash />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* PAGINATION CONTROLS */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '30px', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <button 
+                        disabled={page === 1}
+                        onClick={() => setPage(prev => prev - 1)}
+                        style={{ padding: '10px 20px', backgroundColor: page === 1 ? 'transparent' : 'rgba(52, 152, 219, 0.2)', color: page === 1 ? '#64748b' : '#3498db', border: `1px solid ${page === 1 ? '#475569' : 'rgba(52, 152, 219, 0.5)'}`, borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 'bold', transition: 'all 0.3s' }}
+                    >
+                        Previous
+                    </button>
+                    <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>Page {page}</span>
+                    <button 
+                        disabled={users.length < limit}
+                        onClick={() => setPage(prev => prev + 1)}
+                        style={{ padding: '10px 20px', backgroundColor: users.length < limit ? 'transparent' : 'rgba(52, 152, 219, 0.2)', color: users.length < limit ? '#64748b' : '#3498db', border: `1px solid ${users.length < limit ? '#475569' : 'rgba(52, 152, 219, 0.5)'}`, borderRadius: '8px', cursor: users.length < limit ? 'not-allowed' : 'pointer', fontWeight: 'bold', transition: 'all 0.3s' }}
+                    >
+                        Next
+                    </button>
+                </div>
             </div>
 
             {/* DYNAMIC ADD/EDIT USER MODAL */}
@@ -245,7 +266,7 @@ export default function Users() {
                                     type="password" 
                                     value={password} 
                                     onChange={(e) => setPassword(e.target.value)} 
-                                    required={!editingUser} // Only strictly required when creating a new user
+                                    required={!editingUser}
                                 />
                             </div>
 

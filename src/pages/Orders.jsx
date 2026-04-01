@@ -8,6 +8,10 @@ export default function Orders() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const limit = 10;
+
     // Search & Filter State
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
@@ -23,19 +27,20 @@ export default function Orders() {
     const [trackingNumber, setTrackingNumber] = useState('');
 
     const fetchOrders = async () => {
+        setLoading(true);
         try {
-            const response = await api.get('/orders');
+            const response = await api.get(`/orders?page=${page}&limit=${limit}`);
             setOrders(response.data);
-            setLoading(false);
         } catch (err) {
             toast.error('Failed to load orders.');
+        } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
         fetchOrders();
-    }, []);
+    }, [page]);
 
     const handleStatusChange = async (orderId, newStatus) => {
         try {
@@ -60,7 +65,6 @@ export default function Orders() {
             });
             toast.success('Tracking information saved!');
             
-            // Update local state so modal reflects changes immediately
             setSelectedOrder(prev => ({ ...prev, courierName, trackingNumber }));
             fetchOrders();
         } catch (err) {
@@ -139,7 +143,7 @@ export default function Orders() {
     const getPaymentStyle = (status) => {
         if (status === 'Paid') return { color: '#2ecc71', bg: 'rgba(46, 204, 113, 0.2)' };
         if (status === 'Failed') return { color: '#e74c3c', bg: 'rgba(231, 76, 60, 0.2)' };
-        return { color: '#f1c40f', bg: 'rgba(241, 196, 15, 0.2)' }; // Default Pending
+        return { color: '#f1c40f', bg: 'rgba(241, 196, 15, 0.2)' }; 
     };
 
     const filteredOrders = orders.filter(order => {
@@ -150,7 +154,7 @@ export default function Orders() {
         return matchesSearch && matchesStatus;
     });
 
-    if (loading) return <h2 style={{ padding: '40px', color: 'white' }}>Loading Order History...</h2>;
+    if (loading && orders.length === 0) return <h2 style={{ padding: '40px', color: 'white' }}>Loading Order History...</h2>;
 
     return (
         <div style={{ padding: '40px 40px 40px 20px', position: 'relative' }}>
@@ -158,7 +162,7 @@ export default function Orders() {
                 <FaClipboardList style={{ color: '#e67e22' }} /> Order Fulfillment
             </h1>
 
-            <div className="glass-panel" style={{ padding: '30px', overflowX: 'auto' }}>
+            <div className="glass-panel" style={{ padding: '30px', overflowX: 'auto', display: 'flex', flexDirection: 'column', minHeight: '500px' }}>
                 
                 {/* SEARCH & FILTER CONTROLS */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
@@ -166,7 +170,7 @@ export default function Orders() {
                         <FaSearch color="#94a3b8" />
                         <input 
                             type="text" 
-                            placeholder="Search by Order ID or Customer..." 
+                            placeholder="Search current page..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ background: 'transparent', border: 'none', color: 'white', paddingLeft: '10px', outline: 'none', width: '100%' }}
@@ -192,72 +196,94 @@ export default function Orders() {
                     </div>
                 </div>
 
-                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: '#e2e8f0' }}>
-                    <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Order ID</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Customer</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Date</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Payment</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Shipping Status</th>
-                            <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500', textAlign: 'center' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredOrders.length === 0 ? (
-                            <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No matching orders found.</td></tr>
-                        ) : (
-                            filteredOrders.map((order) => {
-                                const statusStyle = getStatusStyle(order.status);
-                                const paymentStyle = getPaymentStyle(order.paymentStatus || 'Pending');
-                                return (
-                                    <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <td style={{ padding: '15px 10px', fontSize: '0.85em', color: '#94a3b8', fontFamily: 'monospace' }}>
-                                           {order.id.substring(order.id.length - 8).toUpperCase()} {/* Show short ID */}
-                                        </td>
-                                        <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>
-                                            {order.user ? order.user.name : 'Guest'}
-                                        </td>
-                                        <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>
-                                            {new Date(order.dateOrdered).toLocaleDateString()}
-                                        </td>
-                                        <td style={{ padding: '15px 10px' }}>
-                                            <span style={{ backgroundColor: paymentStyle.bg, color: paymentStyle.color, padding: '4px 8px', borderRadius: '4px', fontSize: '0.85em', fontWeight: 'bold' }}>
-                                                {order.paymentStatus || 'Pending'}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '15px 10px' }}>
-                                            <select 
-                                                value={order.status} 
-                                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                                style={{ 
-                                                    padding: '6px 10px', borderRadius: '6px', border: `1px solid ${statusStyle.border}`,
-                                                    backgroundColor: statusStyle.bg, color: statusStyle.color, fontWeight: 'bold',
-                                                    cursor: 'pointer', outline: 'none', appearance: 'none', textAlign: 'center', fontSize: '0.9em'
-                                                }}
-                                            >
-                                                <option value="Pending" style={{ color: 'black' }}>Pending</option>
-                                                <option value="Processing" style={{ color: 'black' }}>Processing</option>
-                                                <option value="Shipped" style={{ color: 'black' }}>Shipped</option>
-                                                <option value="Out for Delivery" style={{ color: 'black' }}>Out for Delivery</option>
-                                                <option value="Delivered" style={{ color: 'black' }}>Delivered</option>
-                                                <option value="Cancelled" style={{ color: 'black' }}>Cancelled</option>
-                                            </select>
-                                        </td>
-                                        <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                            <button onClick={() => viewOrderDetails(order.id)} style={{ backgroundColor: 'transparent', color: '#3498db', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s', marginRight: '5px' }} title="View Details">
-                                                <FaEye />
-                                            </button>
-                                            <button onClick={() => handleDelete(order.id)} style={{ backgroundColor: 'transparent', color: '#e74c3c', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s' }} title="Delete Order">
-                                                <FaTrash />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
+                <div style={{ flex: 1 }}>
+                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: '#e2e8f0' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Order ID</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Customer</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Date</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Payment</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Shipping Status</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500', textAlign: 'center' }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredOrders.length === 0 ? (
+                                <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No matching orders found.</td></tr>
+                            ) : (
+                                filteredOrders.map((order) => {
+                                    const statusStyle = getStatusStyle(order.status);
+                                    const paymentStyle = getPaymentStyle(order.paymentStatus || 'Pending');
+                                    return (
+                                        <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <td style={{ padding: '15px 10px', fontSize: '0.85em', color: '#94a3b8', fontFamily: 'monospace' }}>
+                                            {order.id.substring(order.id.length - 8).toUpperCase()} 
+                                            </td>
+                                            <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>
+                                                {order.user ? order.user.name : 'Guest'}
+                                            </td>
+                                            <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>
+                                                {new Date(order.dateOrdered).toLocaleDateString()}
+                                            </td>
+                                            <td style={{ padding: '15px 10px' }}>
+                                                <span style={{ backgroundColor: paymentStyle.bg, color: paymentStyle.color, padding: '4px 8px', borderRadius: '4px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                                                    {order.paymentStatus || 'Pending'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '15px 10px' }}>
+                                                <select 
+                                                    value={order.status} 
+                                                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                                    style={{ 
+                                                        padding: '6px 10px', borderRadius: '6px', border: `1px solid ${statusStyle.border}`,
+                                                        backgroundColor: statusStyle.bg, color: statusStyle.color, fontWeight: 'bold',
+                                                        cursor: 'pointer', outline: 'none', appearance: 'none', textAlign: 'center', fontSize: '0.9em'
+                                                    }}
+                                                >
+                                                    <option value="Pending" style={{ color: 'black' }}>Pending</option>
+                                                    <option value="Processing" style={{ color: 'black' }}>Processing</option>
+                                                    <option value="Shipped" style={{ color: 'black' }}>Shipped</option>
+                                                    <option value="Out for Delivery" style={{ color: 'black' }}>Out for Delivery</option>
+                                                    <option value="Delivered" style={{ color: 'black' }}>Delivered</option>
+                                                    <option value="Cancelled" style={{ color: 'black' }}>Cancelled</option>
+                                                </select>
+                                            </td>
+                                            <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                                <button onClick={() => viewOrderDetails(order.id)} style={{ backgroundColor: 'transparent', color: '#3498db', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s', marginRight: '5px' }} title="View Details">
+                                                    <FaEye />
+                                                </button>
+                                                <button onClick={() => handleDelete(order.id)} style={{ backgroundColor: 'transparent', color: '#e74c3c', border: 'none', padding: '8px', cursor: 'pointer', fontSize: '1.2rem', transition: 'transform 0.2s' }} title="Delete Order">
+                                                    <FaTrash />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* PAGINATION CONTROLS */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '30px', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <button 
+                        disabled={page === 1}
+                        onClick={() => setPage(prev => prev - 1)}
+                        style={{ padding: '10px 20px', backgroundColor: page === 1 ? 'transparent' : 'rgba(52, 152, 219, 0.2)', color: page === 1 ? '#64748b' : '#3498db', border: `1px solid ${page === 1 ? '#475569' : 'rgba(52, 152, 219, 0.5)'}`, borderRadius: '8px', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 'bold', transition: 'all 0.3s' }}
+                    >
+                        Previous
+                    </button>
+                    <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>Page {page}</span>
+                    <button 
+                        disabled={orders.length < limit}
+                        onClick={() => setPage(prev => prev + 1)}
+                        style={{ padding: '10px 20px', backgroundColor: orders.length < limit ? 'transparent' : 'rgba(52, 152, 219, 0.2)', color: orders.length < limit ? '#64748b' : '#3498db', border: `1px solid ${orders.length < limit ? '#475569' : 'rgba(52, 152, 219, 0.5)'}`, borderRadius: '8px', cursor: orders.length < limit ? 'not-allowed' : 'pointer', fontWeight: 'bold', transition: 'all 0.3s' }}
+                    >
+                        Next
+                    </button>
+                </div>
+
             </div>
 
             {/* ORDER INVOICE MODAL */}
