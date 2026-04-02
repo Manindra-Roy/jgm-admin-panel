@@ -23,6 +23,7 @@ export default function Products() {
     const [brand, setBrand] = useState('');
     const [isFeatured, setIsFeatured] = useState(false);
     const [image, setImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
     const [editingId, setEditingId] = useState(null);
 
     const fetchData = async () => {
@@ -41,15 +42,33 @@ export default function Products() {
         }
     };
 
-    useEffect(() => {
-        const delaySearch = setTimeout(() => {
+    // useEffect(() => {
+    //     const delaySearch = setTimeout(() => {
+    //         fetchData();
+    //     }, 500);
+    //     return () => clearTimeout(delaySearch);
+    // }, [page, searchTerm]);
+
+    // 1. Instantly fetch data when the page changes
+        useEffect(() => {
             fetchData();
-        }, 500);
-        return () => clearTimeout(delaySearch);
-    }, [page, searchTerm]);
+        }, [page]);
+
+        // 2. Wait 500ms before fetching data when the search term changes
+        useEffect(() => {
+            // Prevent fetching twice on the initial load (since the page hook handles it)
+            if (loading) return; 
+
+            const delaySearch = setTimeout(() => {
+                fetchData();
+            }, 500);
+            
+            return () => clearTimeout(delaySearch);
+        }, [searchTerm]);
 
     const handleEditClick = (product) => {
         setEditingId(product.id);
+        setImagePreview(product.image || null);
         setName(product.name);
         setDescription(product.description);
         setPrice(product.price);
@@ -63,9 +82,18 @@ export default function Products() {
 
     const handleCancelEdit = () => {
         setEditingId(null);
+        setImagePreview(null);
         setName(''); setDescription(''); setPrice(''); setCategory(''); 
         setCountInStock(''); setBrand(''); setIsFeatured(false); setImage(null);
     };
+
+    const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        setImage(file);
+        setImagePreview(URL.createObjectURL(file)); // Generate local preview
+    }
+};
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -118,10 +146,28 @@ export default function Products() {
                     <button 
                         onClick={async () => {
                             toast.dismiss(t.id);
+                            // try {
+                            //     await api.delete(`/products/${id}`);
+                            //     toast.success('Item deleted');
+                            //     fetchData();
+                            // } catch (err) {
+                            //     toast.error('Failed to delete item.');
+                            // }
                             try {
                                 await api.delete(`/products/${id}`);
                                 toast.success('Item deleted');
-                                fetchData();
+                                
+                                // --- THE PAGINATION FIX ---
+                                // If this is the last item on the page, and we aren't on page 1, go back a page.
+                                if (products.length === 1 && page > 1) {
+                                    setPage(prev => prev - 1);
+                                    // Note: We don't need to call fetchData() here because changing the 'page' 
+                                    // state will automatically trigger the useEffect to fetch the new page!
+                                } else {
+                                    fetchData(); // Otherwise, just refresh the current page
+                                }
+                                // --------------------------
+                                
                             } catch (err) {
                                 toast.error('Failed to delete item.');
                             }
@@ -170,11 +216,29 @@ export default function Products() {
                             <FaStar color={isFeatured ? '#f1c40f' : '#95a5a6'} /> Mark as Featured Product
                         </label>
 
-                        <div style={{ padding: '20px', border: '1px dashed rgba(255,255,255,0.3)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.1)' }}>
-                            <label style={{ display: 'block', marginBottom: '15px', color: '#e2e8f0', fontWeight: '500' }}>
+                        <div style={{ padding: '20px', border: '1px dashed rgba(255,255,255,0.3)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <label style={{ color: '#e2e8f0', fontWeight: '500' }}>
                                 <FaImage /> {editingId ? 'Upload New Image (Leaves current if empty)' : 'Featured Image'}
                             </label>
-                            <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={(e) => setImage(e.target.files[0])} required={!editingId} style={{ color: '#94a3b8', width: '100%' }} />
+                            
+                            {/* This is the new part that shows the image preview! */}
+                            {imagePreview && (
+                                <div style={{ alignSelf: 'flex-start', position: 'relative' }}>
+                                    <img 
+                                        src={imagePreview} 
+                                        alt="Preview" 
+                                        style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #3498db' }} 
+                                    />
+                                </div>
+                            )}
+
+                            <input 
+                                type="file" 
+                                accept="image/jpeg, image/png, image/jpg" 
+                                onChange={handleImageChange} 
+                                required={!editingId} 
+                                style={{ color: '#94a3b8', width: '100%' }} 
+                            />
                         </div>
 
                         <div style={{ display: 'flex', gap: '10px' }}>

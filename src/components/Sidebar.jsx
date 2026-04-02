@@ -68,7 +68,7 @@ export default function Sidebar() {
                 }}>
                     <span style={{ color: '#3498db' }}>JGM</span> ADMIN
                 </h2>
-                <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>Management Portal v2.0</p>
+                <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>Management Portal v1.0</p>
             </div>
 
             <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>

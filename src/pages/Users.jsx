@@ -54,7 +54,11 @@ export default function Users() {
                             try {
                                 await api.delete(`/users/${userId}`);
                                 toast.success('User deleted');
-                                fetchUsers(); 
+                                if (users.length === 1 && page > 1) {
+                                    setPage(prev => prev - 1);
+                                } else {
+                                    fetchUsers();
+                                } 
                             } catch (err) {
                                 toast.error('Failed to delete user.');
                             }

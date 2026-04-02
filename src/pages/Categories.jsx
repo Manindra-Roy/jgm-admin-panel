@@ -14,6 +14,7 @@ export default function Categories() {
     const [icon, setIcon] = useState('');
     const [color, setColor] = useState('#3498db');
     const [image, setImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
     const [editingId, setEditingId] = useState(null);
 
     const fetchCategories = async () => {
@@ -34,6 +35,7 @@ export default function Categories() {
 
     const handleEditClick = (category) => {
         setEditingId(category.id);
+        setImagePreview(category.image || null);
         setName(category.name);
         setIcon(category.icon || '');
         setColor(category.color || '#3498db');
@@ -43,10 +45,19 @@ export default function Categories() {
 
     const handleCancelEdit = () => {
         setEditingId(null);
+        setImagePreview(null);
         setName('');
         setIcon('');
         setColor('#3498db');
         setImage(null);
+    };
+
+    const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        setImage(file);
+        setImagePreview(URL.createObjectURL(file));
+    }
     };
 
     const handleSubmit = async (e) => {
@@ -129,11 +140,35 @@ export default function Categories() {
                             <input className="glass-input" type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ padding: '5px', cursor: 'pointer', height: '50px' }} />
                         </div>
                         
-                        <div style={{ padding: '15px', border: '1px dashed rgba(255,255,255,0.3)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.1)' }}>
+                        {/* <div style={{ padding: '15px', border: '1px dashed rgba(255,255,255,0.3)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.1)' }}>
                             <label style={{ display: 'block', marginBottom: '10px', color: '#e2e8f0', fontWeight: '500', fontSize: '0.9rem' }}>
                                 <FaImage /> {editingId ? 'New Cover Image (Optional)' : 'Cover Image'}
                             </label>
                             <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={(e) => setImage(e.target.files[0])} style={{ color: '#94a3b8', width: '100%', fontSize: '0.85rem' }} />
+                        </div> */}
+
+
+                        <div style={{ padding: '15px', border: '1px dashed rgba(255,255,255,0.3)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <label style={{ color: '#e2e8f0', fontWeight: '500', fontSize: '0.9rem' }}>
+                                <FaImage /> {editingId ? 'New Cover Image (Optional)' : 'Cover Image'}
+                            </label>
+                            
+                            {imagePreview && (
+                                <div style={{ alignSelf: 'flex-start', position: 'relative' }}>
+                                    <img 
+                                        src={imagePreview} 
+                                        alt="Preview" 
+                                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #9b59b6' }} 
+                                    />
+                                </div>
+                            )}
+
+                            <input 
+                                type="file" 
+                                accept="image/jpeg, image/png, image/jpg" 
+                                onChange={handleImageChange} 
+                                style={{ color: '#94a3b8', width: '100%', fontSize: '0.85rem' }} 
+                            />
                         </div>
 
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>

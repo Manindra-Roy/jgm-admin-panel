@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Loader from '../components/Loader';
+import { io } from 'socket.io-client';
+import { FaUserClock } from 'react-icons/fa'; // Let's use a nice icon for it
 import { 
     FaMoneyBillWave, FaClipboardList, FaBoxOpen, FaUsers, 
     FaCheckCircle, FaTimesCircle, FaChartLine, FaHourglassHalf
@@ -18,6 +20,7 @@ export default function Dashboard() {
         'Shipped': '#3498db', 'Pending': '#f1c40f', 'Out for Delivery': '#1abc9c', 'Default': '#95a5a6'
     };
 
+    const [liveUsers, setLiveUsers] = useState(0);
     const [totalSales, setTotalSales] = useState(0);
     const [totalOrders, setTotalOrders] = useState(0);
     const [activeProducts, setActiveProducts] = useState(0);
@@ -80,6 +83,25 @@ export default function Dashboard() {
         fetchDashboardData();
     }, []);
 
+    useEffect(() => {
+        // Connect to the base URL of your backend (remove /api/v1 if it's in your env variable)
+        const baseUrl = import.meta.env.VITE_API_URL 
+            ? import.meta.env.VITE_API_URL.replace('/api/v1', '') 
+            : 'http://localhost:3000';
+            
+        const socket = io(baseUrl);
+
+        // Listen for the broadcast from the server
+        socket.on('liveUsersUpdate', (count) => {
+            setLiveUsers(count);
+        });
+
+        // Cleanup the connection when leaving the dashboard
+        return () => {
+            socket.disconnect();
+        };
+    }, []);
+
     const getStatusStyle = (status) => {
         switch(status) {
             case 'Pending': return { bg: 'rgba(241, 196, 15, 0.2)', color: '#f1c40f', border: 'rgba(241, 196, 15, 0.5)' };
@@ -104,7 +126,8 @@ export default function Dashboard() {
             ) : (
                 <>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '40px' }}>
-                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    
+                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #2ECC71' }}>
                             <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(46, 204, 113, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#2ecc71' }}><FaMoneyBillWave /></div>
                             <div>
                                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Sales</p>
@@ -112,7 +135,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #F39C12' }}>
                             <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(243, 156, 18, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#f39c12' }}><FaClipboardList /></div>
                             <div>
                                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Orders</p>
@@ -144,7 +167,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #3498DB' }}>
                             <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(52, 152, 219, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#3498db' }}><FaBoxOpen /></div>
                             <div>
                                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Products</p>
@@ -152,12 +175,37 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #6C5CE7' }}>
                             <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(108, 92, 231, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#6c5ce7' }}><FaUsers /></div>
                             <div>
                                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Registered Users</p>
                                 <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{registeredUsers}</h2>
                             </div>
+                        </div>
+                        {/* NEW: Live Active Users Card */}
+                        <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #e84393' }}>
+                            <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(232, 67, 147, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#e84393' }}>
+                                <FaUserClock />
+                            </div>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Live Users</p>
+                                    {/* Pulsing red dot indicator */}
+                                    <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#e74c3c', borderRadius: '50%', boxShadow: '0 0 8px #e74c3c', animation: 'pulse 1.5s infinite' }}></span>
+                                </div>
+                                <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{liveUsers}</h2>
+                            </div>
+                            
+                            {/* CSS for the pulsing dot */}
+                            <style>
+                                {`
+                                @keyframes pulse {
+                                    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+                                    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+                                    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+                                }
+                                `}
+                            </style>
                         </div>
                     </div>
 

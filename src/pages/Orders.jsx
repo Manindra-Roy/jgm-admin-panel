@@ -85,8 +85,12 @@ export default function Orders() {
                             try {
                                 await api.delete(`/orders/${orderId}`);
                                 toast.success('Order deleted');
-                                fetchOrders();
-                                if (selectedOrder && selectedOrder.id === orderId) closeModal();
+                                if (orders.length === 1 && page > 1) {
+                                    setPage(prev => prev - 1);
+                                } else {
+                                    fetchOrders();
+                                }
+                                                                if (selectedOrder && selectedOrder.id === orderId) closeModal();
                             } catch (err) {
                                 toast.error('Failed to delete order.');
                             }
