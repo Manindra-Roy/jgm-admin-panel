@@ -168,11 +168,11 @@ export default function Categories() {
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <div>
                             <label style={{ display: 'block', marginBottom: '8px', color: '#94a3b8', fontSize: '0.9rem' }}>Category Name</label>
-                            <input className="glass-input" type="text" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g., Electronics" />
+                            <input className="glass-input" type="text" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g., Perfume" />
                         </div>
                         <div>
                             <label style={{ display: 'block', marginBottom: '8px', color: '#94a3b8', fontSize: '0.9rem' }}>Icon (Text/Emoji)</label>
-                            <input className="glass-input" type="text" value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="e.g., ⚡" />
+                            <input className="glass-input" type="text" value={icon} onChange={(e) => setIcon(e.target.value)} placeholder="e.g., 🌺" />
                         </div>
                         <div>
                             <label style={{ display: 'block', marginBottom: '8px', color: '#94a3b8', fontSize: '0.9rem' }}>Identifier Color</label>
