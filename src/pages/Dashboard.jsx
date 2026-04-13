@@ -1,10 +1,15 @@
-// src/pages/Dashboard.jsx
+/**
+ * @fileoverview Admin Dashboard Component.
+ * Acts as the central hub for the admin panel, displaying real-time metrics,
+ * revenue trends, order status distributions, and recent transactions.
+ */
+
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Loader from '../components/Loader';
 import { io } from 'socket.io-client';
-import { FaUserClock } from 'react-icons/fa'; // Let's use a nice icon for it
+import { FaUserClock } from 'react-icons/fa'; 
 import { 
     FaMoneyBillWave, FaClipboardList, FaBoxOpen, FaUsers, 
     FaCheckCircle, FaTimesCircle, FaChartLine, FaHourglassHalf
@@ -14,12 +19,18 @@ import {
     PieChart, Pie, Cell, Legend
 } from 'recharts';
 
+/**
+ * Dashboard Component
+ * @returns {JSX.Element} The rendered admin dashboard with metrics and charts.
+ */
 export default function Dashboard() {
+    // Standardized color palette for different order statuses
     const STATUS_COLORS = {
         'Delivered': '#2ecc71', 'Processing': '#9b59b6', 'Cancelled': '#e74c3c',
         'Shipped': '#3498db', 'Pending': '#f1c40f', 'Out for Delivery': '#1abc9c', 'Default': '#95a5a6'
     };
 
+    // --- METRIC STATES ---
     const [liveUsers, setLiveUsers] = useState(0);
     const [totalSales, setTotalSales] = useState(0);
     const [totalOrders, setTotalOrders] = useState(0);
@@ -29,14 +40,20 @@ export default function Dashboard() {
     const [canceledOrders, setCanceledOrders] = useState(0);
     const [processingOrders, setProcessingOrders] = useState(0);
 
+    // --- CHART & DATA STATES ---
     const [chartData, setChartData] = useState([]);
     const [recentOrders, setRecentOrders] = useState([]);
     const [statusData, setStatusData] = useState([]); 
     const [loading, setLoading] = useState(true);
 
+    /**
+     * Effect: Fetches all required dashboard metrics concurrently.
+     * Uses Promise.all to optimize loading times across multiple API endpoints.
+     */
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
+                // Fetch product count, user count, and complex order aggregations simultaneously
                 const [ productsRes, usersRes, dashboardRes ] = await Promise.all([
                     api.get('/products/get/count'),
                     api.get('/users/get/count'),
@@ -54,17 +71,20 @@ export default function Dashboard() {
                 setCanceledOrders(statusCounts['Cancelled'] || 0);
                 setProcessingOrders(statusCounts['Processing'] || 0);
 
+                // Format data for the Recharts PieChart
                 const formattedStatusData = Object.keys(statusCounts).map(status => ({
                     name: status,
                     value: statusCounts[status]
                 }));
                 setStatusData(formattedStatusData); 
 
+                // Format data for the Recharts AreaChart
                 let formattedChartData = dailySales.map(day => ({
                     date: day._id,
                     Sales: day.totalSales
                 }));
 
+                // Handle edge cases for chart rendering (ensures lines draw correctly even with limited data)
                 if (formattedChartData.length === 1) {
                     formattedChartData = [{ date: "Previous", Sales: 0 }, formattedChartData[0]];
                 } else if (formattedChartData.length === 0) {
@@ -83,25 +103,33 @@ export default function Dashboard() {
         fetchDashboardData();
     }, []);
 
+    /**
+     * Effect: Initializes WebSocket connection for real-time live user tracking.
+     */
     useEffect(() => {
-        // Connect to the base URL of your backend (remove /api/v1 if it's in your env variable)
+        // Dynamically connect to the base URL of the backend
         const baseUrl = import.meta.env.VITE_API_URL 
             ? import.meta.env.VITE_API_URL.replace('/api/v1', '') 
             : 'http://localhost:3000';
             
         const socket = io(baseUrl);
 
-        // Listen for the broadcast from the server
+        // Listen for broadcasts from the server regarding active connections
         socket.on('liveUsersUpdate', (count) => {
             setLiveUsers(count);
         });
 
-        // Cleanup the connection when leaving the dashboard
+        // Cleanup the socket connection to prevent memory leaks when navigating away
         return () => {
             socket.disconnect();
         };
     }, []);
 
+    /**
+     * Determines the visual styling for an order status badge.
+     * @param {string} status - The current status of the order.
+     * @returns {Object} An object containing the background, text, and border colors.
+     */
     const getStatusStyle = (status) => {
         switch(status) {
             case 'Pending': return { bg: 'rgba(241, 196, 15, 0.2)', color: '#f1c40f', border: 'rgba(241, 196, 15, 0.5)' };
@@ -125,6 +153,7 @@ export default function Dashboard() {
                 <Loader message="Aggregating Store Data..." />
             ) : (
                 <>
+                    {/* --- KPI CARDS ROW --- */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '40px' }}>
                     
                         <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #2ECC71' }}>
@@ -182,7 +211,8 @@ export default function Dashboard() {
                                 <h2 style={{ margin: '5px 0 0 0', color: '#fff', fontSize: '2rem' }}>{registeredUsers}</h2>
                             </div>
                         </div>
-                        {/* NEW: Live Active Users Card */}
+
+                        {/* Live Active Users Card (WebSocket Driven) */}
                         <div className="glass-panel" style={{ padding: '25px', display: 'flex', alignItems: 'center', gap: '20px', borderBottom: '3px solid #e84393' }}>
                             <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundColor: 'rgba(232, 67, 147, 0.1)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.8rem', color: '#e84393' }}>
                                 <FaUserClock />
@@ -209,7 +239,10 @@ export default function Dashboard() {
                         </div>
                     </div>
 
+                    {/* --- CHARTS ROW --- */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+                        
+                        {/* Revenue Trend Area Chart */}
                         <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column' }}>
                             <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Revenue Trend (Last 14 Active Days)</h3>
                             {chartData.length === 0 ? (
@@ -235,6 +268,7 @@ export default function Dashboard() {
                             )}
                         </div>
 
+                        {/* Order Status Distribution Pie Chart */}
                         <div className="glass-panel" style={{ padding: '30px', display: 'flex', flexDirection: 'column' }}>
                             <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Order Status Distribution</h3>
                             {statusData.length === 0 ? (
@@ -267,6 +301,7 @@ export default function Dashboard() {
                         </div>
                     </div>
 
+                    {/* --- RECENT TRANSACTIONS TABLE --- */}
                     <div className="glass-panel" style={{ padding: '30px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
                             <h3 style={{ margin: 0, color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Recent Transactions</h3>
@@ -292,7 +327,7 @@ export default function Dashboard() {
                                         return (
                                             <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                                 <td style={{ padding: '15px 10px', fontSize: '0.85em', color: '#94a3b8', fontFamily: 'monospace' }}>
-                                                {order.id.substring(order.id.length - 8).toUpperCase()}
+                                                    {order.id.substring(order.id.length - 8).toUpperCase()}
                                                 </td>
                                                 <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>
                                                     {order.user ? order.user.name : 'Guest'}

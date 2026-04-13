@@ -1,15 +1,26 @@
-// src/pages/Categories.jsx
+/**
+ * @fileoverview Admin Category Management Component.
+ * Handles complete CRUD (Create, Read, Update, Delete) operations for product categories.
+ * Includes support for multipart/form-data to handle Cloudinary image uploads securely.
+ */
+
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Loader from '../components/Loader';
 import { FaTrash, FaTags, FaEdit, FaImage } from 'react-icons/fa';
 
+/**
+ * Categories Component
+ * @returns {JSX.Element} The rendered category management interface.
+ */
 export default function Categories() {
+    // --- STATE MANAGEMENT ---
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     
+    // Form States
     const [name, setName] = useState('');
     const [icon, setIcon] = useState('');
     const [color, setColor] = useState('#3498db');
@@ -17,6 +28,9 @@ export default function Categories() {
     const [imagePreview, setImagePreview] = useState(null);
     const [editingId, setEditingId] = useState(null);
 
+    /**
+     * Fetches the latest list of product categories from the database.
+     */
     const fetchCategories = async () => {
         setLoading(true);
         try {
@@ -29,20 +43,28 @@ export default function Categories() {
         }
     };
 
+    // Initial data load on mount
     useEffect(() => {
         fetchCategories();
     }, []);
 
+    /**
+     * Populates the form inputs with the selected category's data and scrolls to the top.
+     * @param {Object} category - The category object to edit.
+     */
     const handleEditClick = (category) => {
         setEditingId(category.id);
         setImagePreview(category.image || null);
         setName(category.name);
         setIcon(category.icon || '');
         setColor(category.color || '#3498db');
-        setImage(null); 
+        setImage(null); // Reset the file input 
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    /**
+     * Clears the form state and exits edit mode.
+     */
     const handleCancelEdit = () => {
         setEditingId(null);
         setImagePreview(null);
@@ -52,18 +74,27 @@ export default function Categories() {
         setImage(null);
     };
 
+    /**
+     * Captures the selected image file and generates a temporary local URL for previewing.
+     * @param {Event} e - The file input change event.
+     */
     const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        setImage(file);
-        setImagePreview(URL.createObjectURL(file));
-    }
+        const file = e.target.files[0];
+        if (file) {
+            setImage(file);
+            setImagePreview(URL.createObjectURL(file));
+        }
     };
 
+    /**
+     * Submits the form data to the backend.
+     * Uses FormData to package the text fields alongside the binary image file.
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
         setUploading(true);
 
+        // Construct multipart/form-data payload
         const formData = new FormData();
         formData.append('name', name);
         formData.append('icon', icon);
@@ -72,11 +103,13 @@ export default function Categories() {
 
         try {
             if (editingId) {
+                // Update existing category
                 await api.put(`/categories/${editingId}`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
                 toast.success('Category updated!');
             } else {
+                // Create new category
                 await api.post('/categories', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
@@ -91,6 +124,10 @@ export default function Categories() {
         }
     };
 
+    /**
+     * Triggers a custom confirmation toast before deleting a category.
+     * @param {string} id - The database ID of the category to delete.
+     */
     const handleDelete = async (id) => {
         toast((t) => (
             <div>
@@ -122,6 +159,8 @@ export default function Categories() {
             </h1>
 
             <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                
+                {/* --- FORM SECTION --- */}
                 <div className="glass-panel" style={{ padding: '30px', flex: '1', minWidth: '300px' }}>
                     <h3 style={{ marginBottom: '25px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>
                         {editingId ? 'Edit Category' : 'Create Category'}
@@ -140,14 +179,6 @@ export default function Categories() {
                             <input className="glass-input" type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ padding: '5px', cursor: 'pointer', height: '50px' }} />
                         </div>
                         
-                        {/* <div style={{ padding: '15px', border: '1px dashed rgba(255,255,255,0.3)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.1)' }}>
-                            <label style={{ display: 'block', marginBottom: '10px', color: '#e2e8f0', fontWeight: '500', fontSize: '0.9rem' }}>
-                                <FaImage /> {editingId ? 'New Cover Image (Optional)' : 'Cover Image'}
-                            </label>
-                            <input type="file" accept="image/jpeg, image/png, image/jpg" onChange={(e) => setImage(e.target.files[0])} style={{ color: '#94a3b8', width: '100%', fontSize: '0.85rem' }} />
-                        </div> */}
-
-
                         <div style={{ padding: '15px', border: '1px dashed rgba(255,255,255,0.3)', borderRadius: '8px', backgroundColor: 'rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <label style={{ color: '#e2e8f0', fontWeight: '500', fontSize: '0.9rem' }}>
                                 <FaImage /> {editingId ? 'New Cover Image (Optional)' : 'Cover Image'}
@@ -182,6 +213,7 @@ export default function Categories() {
                     </form>
                 </div>
 
+                {/* --- DATA TABLE SECTION --- */}
                 <div className="glass-panel" style={{ padding: '30px', flex: '2', minWidth: '400px', minHeight: '400px' }}>
                     <h3 style={{ marginBottom: '25px', color: '#e2e8f0', fontSize: '1.2rem', fontWeight: '500' }}>Active Categories</h3>
                     

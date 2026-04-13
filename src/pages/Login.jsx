@@ -1,8 +1,16 @@
-// src/pages/Login.jsx
+/**
+ * @fileoverview Admin Authentication Page Component.
+ * Handles credential submission and secure session initialization for staff members.
+ */
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
+/**
+ * Login Component
+ * @returns {JSX.Element} The rendered admin login form.
+ */
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -11,7 +19,11 @@ export default function Login() {
     
     const navigate = useNavigate();
 
-    // Inside src/pages/Login.jsx, update handleLogin:
+    /**
+     * Submits credentials to the backend. If successful, sets a local flag 
+     * indicating authentication status and navigates to the dashboard.
+     * The actual JWT is managed securely by the browser via HTTP-Only cookies.
+     */
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -22,7 +34,8 @@ export default function Login() {
             
             // Set a simple flag so React knows we are logged in
             localStorage.setItem('is_authenticated', 'true');
-            // Clean up the old insecure token just in case!
+            
+            // Clean up old insecure tokens if they exist from prior legacy code
             localStorage.removeItem('jgm_admin_token'); 
             
             navigate('/');
@@ -32,6 +45,7 @@ export default function Login() {
             setLoading(false);
         }
     };
+    
     return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#1a1a2e' }}>
             <div style={{ backgroundColor: '#16213e', padding: '40px', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', width: '100%', maxWidth: '400px' }}>

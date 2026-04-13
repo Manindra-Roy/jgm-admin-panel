@@ -1,4 +1,15 @@
-// src/components/Loader.jsx
+/**
+ * @fileoverview Global Loading Indicator Component.
+ * Displays a custom CSS animated "glass-spinner" and a configurable loading message.
+ * Used during data fetching to provide seamless visual feedback in the UI.
+ */
+
+/**
+ * Loader Component
+ * @param {Object} props
+ * @param {string} [props.message="Loading..."] - The text displayed below the spinner.
+ * @returns {JSX.Element} The rendered loading spinner.
+ */
 export default function Loader({ message = "Loading..." }) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', width: '100%' }}>

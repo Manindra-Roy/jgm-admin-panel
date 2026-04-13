@@ -1,10 +1,20 @@
-// src/pages/Orders.jsx
+/**
+ * @fileoverview Admin Order Management Component.
+ * Handles the complete order fulfillment lifecycle, including status updates,
+ * logistics/tracking injection, and viewing detailed, printable invoices.
+ */
+
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { FaTrash, FaClipboardList, FaEye, FaTimes, FaSearch, FaFilter, FaPrint, FaTruck, FaMoneyCheckAlt } from 'react-icons/fa';
 
+/**
+ * Orders Component
+ * @returns {JSX.Element} The rendered order management and fulfillment interface.
+ */
 export default function Orders() {
+    // --- STATE MANAGEMENT ---
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     
@@ -16,7 +26,7 @@ export default function Orders() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
 
-    // Modal State
+    // Modal & Detailed View State
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loadingDetails, setLoadingDetails] = useState(false);
@@ -26,6 +36,9 @@ export default function Orders() {
     const [courierName, setCourierName] = useState('');
     const [trackingNumber, setTrackingNumber] = useState('');
 
+    /**
+     * Fetches a paginated list of orders from the backend.
+     */
     const fetchOrders = async () => {
         setLoading(true);
         try {
@@ -38,15 +51,25 @@ export default function Orders() {
         }
     };
 
+    /**
+     * Effect: Refetches data whenever the active page changes.
+     */
     useEffect(() => {
         fetchOrders();
     }, [page]);
 
+    /**
+     * Updates the fulfillment status of a specific order (e.g., 'Pending' to 'Shipped').
+     * @param {string} orderId - The ID of the order to update.
+     * @param {string} newStatus - The new status string.
+     */
     const handleStatusChange = async (orderId, newStatus) => {
         try {
             await api.put(`/orders/${orderId}`, { status: newStatus });
             toast.success(`Order status updated to ${newStatus}`);
             fetchOrders(); 
+            
+            // Instantly update the modal view if it happens to be open
             if (selectedOrder && selectedOrder.id === orderId) {
                 setSelectedOrder(prev => ({ ...prev, status: newStatus }));
             }
@@ -55,6 +78,9 @@ export default function Orders() {
         }
     };
 
+    /**
+     * Injects courier and tracking information into the order.
+     */
     const handleLogisticsUpdate = async (e) => {
         e.preventDefault();
         setUpdatingLogistics(true);
@@ -74,6 +100,10 @@ export default function Orders() {
         }
     };
 
+    /**
+     * Triggers a custom confirmation toast before permanently deleting an order.
+     * @param {string} orderId - The database ID of the order to delete.
+     */
     const handleDelete = async (orderId) => {
         toast((t) => (
             <div>
@@ -85,12 +115,15 @@ export default function Orders() {
                             try {
                                 await api.delete(`/orders/${orderId}`);
                                 toast.success('Order deleted');
+                                
+                                // Handle pagination edge case if the last item on a page is deleted
                                 if (orders.length === 1 && page > 1) {
                                     setPage(prev => prev - 1);
                                 } else {
                                     fetchOrders();
                                 }
-                                                                if (selectedOrder && selectedOrder.id === orderId) closeModal();
+                                
+                                if (selectedOrder && selectedOrder.id === orderId) closeModal();
                             } catch (err) {
                                 toast.error('Failed to delete order.');
                             }
@@ -107,6 +140,10 @@ export default function Orders() {
         ), { duration: 5000 });
     };
 
+    /**
+     * Fetches deep details for a specific order and opens the invoice modal.
+     * @param {string} orderId - The ID of the order to view.
+     */
     const viewOrderDetails = async (orderId) => {
         setIsModalOpen(true);
         setLoadingDetails(true);
@@ -123,15 +160,24 @@ export default function Orders() {
         }
     };
 
+    /**
+     * Closes the invoice modal and clears the selected order state.
+     */
     const closeModal = () => {
         setIsModalOpen(false);
         setSelectedOrder(null);
     };
 
+    /**
+     * Triggers the browser's native print dialog for the invoice.
+     */
     const handlePrint = () => {
         window.print();
     };
 
+    /**
+     * Helper: Determines UI styling based on fulfillment status.
+     */
     const getStatusStyle = (status) => {
         switch(status) {
             case 'Pending': return { bg: 'rgba(241, 196, 15, 0.2)', color: '#f1c40f', border: 'rgba(241, 196, 15, 0.5)' };
@@ -144,12 +190,16 @@ export default function Orders() {
         }
     };
 
+    /**
+     * Helper: Determines UI styling based on PhonePe payment status.
+     */
     const getPaymentStyle = (status) => {
         if (status === 'Paid') return { color: '#2ecc71', bg: 'rgba(46, 204, 113, 0.2)' };
         if (status === 'Failed') return { color: '#e74c3c', bg: 'rgba(231, 76, 60, 0.2)' };
         return { color: '#f1c40f', bg: 'rgba(241, 196, 15, 0.2)' }; 
     };
 
+    // Client-side filtering of the currently loaded page of orders
     const filteredOrders = orders.filter(order => {
         const matchesSearch = 
             order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -168,7 +218,7 @@ export default function Orders() {
 
             <div className="glass-panel" style={{ padding: '30px', overflowX: 'auto', display: 'flex', flexDirection: 'column', minHeight: '500px' }}>
                 
-                {/* SEARCH & FILTER CONTROLS */}
+                {/* --- SEARCH & FILTER CONTROLS --- */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '8px 15px', border: '1px solid rgba(255,255,255,0.1)', flex: 1, maxWidth: '400px' }}>
                         <FaSearch color="#94a3b8" />
@@ -200,6 +250,7 @@ export default function Orders() {
                     </div>
                 </div>
 
+                {/* --- ORDERS TABLE --- */}
                 <div style={{ flex: 1 }}>
                     <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', color: '#e2e8f0' }}>
                         <thead>
@@ -269,7 +320,7 @@ export default function Orders() {
                     </table>
                 </div>
 
-                {/* PAGINATION CONTROLS */}
+                {/* --- PAGINATION CONTROLS --- */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '30px', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                     <button 
                         disabled={page === 1}
@@ -290,7 +341,7 @@ export default function Orders() {
 
             </div>
 
-            {/* ORDER INVOICE MODAL */}
+            {/* --- ORDER INVOICE MODAL --- */}
             {isModalOpen && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, overflowY: 'auto', padding: '20px' }}>
                     
@@ -310,7 +361,7 @@ export default function Orders() {
                         ) : selectedOrder ? (
                             <div style={{ color: '#e2e8f0' }}>
                                 
-                                {/* HEADER */}
+                                {/* INVOICE HEADER */}
                                 <div style={{ borderBottom: '2px solid rgba(255,255,255,0.1)', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div>
                                         <h2 style={{ margin: '0 0 5px 0', color: '#fff', fontSize: '2rem', letterSpacing: '2px' }}>JGM INDUSTRIES</h2>
@@ -370,7 +421,7 @@ export default function Orders() {
                                     </div>
                                 </div>
 
-                                {/* ITEMS TABLE */}
+                                {/* LINE ITEMS TABLE */}
                                 <div>
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <thead>

@@ -1,4 +1,9 @@
-// src/components/Sidebar.jsx
+/**
+ * @fileoverview Admin Navigation Sidebar Component.
+ * Provides routing links to all major admin modules and handles the secure
+ * logout process by terminating the backend session.
+ */
+
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -7,9 +12,17 @@ import {
     FaUsers, FaSignOutAlt 
 } from 'react-icons/fa';
 
+/**
+ * Sidebar Component
+ * @returns {JSX.Element} The rendered navigation sidebar.
+ */
 export default function Sidebar() {
     const navigate = useNavigate();
 
+    /**
+     * Safely terminates the admin session.
+     * Hits the backend to clear the HTTP-Only cookie, clears local flags, and redirects to login.
+     */
     const handleLogout = async () => {
         try {
             // 1. Tell backend to clear the HttpOnly cookie
@@ -29,6 +42,12 @@ export default function Sidebar() {
         }
     };
 
+    /**
+     * Determines the active state styling for React Router NavLinks.
+     * @param {Object} state - Destructured from React Router.
+     * @param {boolean} state.isActive - True if the current URL matches the link.
+     * @returns {Object} A dynamic CSS style object.
+     */
     const navLinkStyle = ({ isActive }) => ({
         display: 'flex',
         alignItems: 'center',
@@ -52,6 +71,7 @@ export default function Sidebar() {
             flexDirection: 'column',
             minHeight: '100vh'
         }}>
+            {/* Header / Brand */}
             <div style={{ 
                 padding: '30px 20px', 
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
@@ -71,6 +91,7 @@ export default function Sidebar() {
                 <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>Management Portal v1.0</p>
             </div>
 
+            {/* Navigation Links */}
             <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 <NavLink to="/" style={navLinkStyle} end>
                     <FaChartPie /> Dashboard
@@ -89,6 +110,7 @@ export default function Sidebar() {
                 </NavLink>
             </nav>
 
+            {/* Logout Action */}
             <div style={{ padding: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 <button 
                     onClick={handleLogout}
