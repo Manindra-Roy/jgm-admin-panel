@@ -49,7 +49,7 @@ export default function Products() {
                 api.get(`/products?page=${page}&limit=${limit}&search=${searchTerm}`),
                 api.get('/categories')
             ]);
-            setProducts(productsRes.data);
+            setProducts(productsRes.data.products || productsRes.data);
             setCategories(categoriesRes.data);
         } catch (err) {
             toast.error('Failed to load inventory data.');

@@ -43,7 +43,7 @@ export default function Orders() {
         setLoading(true);
         try {
             const response = await api.get(`/orders?page=${page}&limit=${limit}`);
-            setOrders(response.data);
+            setOrders(response.data.orders || response.data);
         } catch (err) {
             toast.error('Failed to load orders.');
         } finally {
@@ -86,6 +86,7 @@ export default function Orders() {
         setUpdatingLogistics(true);
         try {
             await api.put(`/orders/${selectedOrder.id}`, { 
+                status: selectedOrder.status,
                 courierName, 
                 trackingNumber 
             });
