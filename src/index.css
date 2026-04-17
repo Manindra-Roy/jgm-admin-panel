@@ -126,3 +126,58 @@ body {
     font-size: 1.8rem !important;
   }
 }
+
+/* ==========================================
+   PRINT FORMATTING
+   ========================================== */
+@media print {
+  /* Hide everything except the printable invoice */
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-invoice, #printable-invoice * {
+    visibility: visible;
+  }
+
+  #printable-invoice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Explicitly hide .no-print elements */
+  .no-print, .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Reset layout for print */
+  .glass-panel {
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Make transparent white inline borders visible in print */
+  .print-border-bottom {
+    border-bottom: 2px solid #ccc !important;
+  }
+  .print-border-bottom-light {
+    border-bottom: 1px solid #ddd !important;
+  }
+
+  /* Ensure flex respects page width */
+  #printable-invoice div {
+    break-inside: avoid;
+  }
+}

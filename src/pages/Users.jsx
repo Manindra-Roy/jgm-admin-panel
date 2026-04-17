@@ -220,6 +220,7 @@ export default function Users() {
                             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                                 <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Name</th>
                                 <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Email</th>
+                                <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Status</th>
                                 <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Phone</th>
                                 <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500' }}>Role</th>
                                 <th style={{ padding: '15px 10px', color: '#94a3b8', fontWeight: '500', textAlign: 'center' }}>Actions</th>
@@ -227,12 +228,19 @@ export default function Users() {
                         </thead>
                         <tbody>
                             {filteredUsers.length === 0 ? (
-                                <tr><td colSpan="5" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No matching users found.</td></tr>
+                                <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No matching users found.</td></tr>
                             ) : (
                                 filteredUsers.map((user) => (
                                     <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                         <td style={{ padding: '15px 10px', fontWeight: 'bold', color: '#fff' }}>{user.name}</td>
                                         <td style={{ padding: '15px 10px', color: '#3498db' }}>{user.email}</td>
+                                        <td style={{ padding: '15px 10px' }}>
+                                            {user.isEmailVerified ? (
+                                                <span style={{ color: '#2ecc71', fontWeight: '600' }}>Verified</span>
+                                            ) : (
+                                                <span style={{ color: '#e74c3c', fontWeight: '600' }}>Unverified</span>
+                                            )}
+                                        </td>
                                         <td style={{ padding: '15px 10px', color: '#cbd5e1' }}>{user.phone}</td>
                                         <td style={{ padding: '15px 10px' }}>
                                             {user.isAdmin ? (
@@ -293,17 +301,17 @@ export default function Users() {
                         <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '8px', color: '#94a3b8', fontSize: '0.9rem' }}>Full Name</label>
-                                <input className="glass-input" type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+                                <input className="glass-input" type="text" value={name} onChange={(e) => setName(e.target.value)} required maxLength="50" />
                             </div>
                             
                             <div style={{ display: 'flex', gap: '15px' }}>
                                 <div style={{ flex: 1 }}>
                                     <label style={{ display: 'block', marginBottom: '8px', color: '#94a3b8', fontSize: '0.9rem' }}>Email Address</label>
-                                    <input className="glass-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                                    <input className="glass-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength="100" />
                                 </div>
                                 <div style={{ flex: 1 }}>
                                     <label style={{ display: 'block', marginBottom: '8px', color: '#94a3b8', fontSize: '0.9rem' }}>Phone Number</label>
-                                    <input className="glass-input" type="tel" placeholder="+91..." value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                                    <input className="glass-input" type="tel" placeholder="10 digits..." minLength="10" maxLength="10" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} required />
                                 </div>
                             </div>
 

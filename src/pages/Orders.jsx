@@ -382,13 +382,13 @@ export default function Orders() {
                                         <p style={{ margin: '5px 0', fontSize: '1.1rem', fontWeight: 'bold', color: '#fff' }}>{selectedOrder.user?.name || 'Guest Customer'}</p>
                                         <p style={{ margin: '5px 0' }}>{selectedOrder.shippingAddress1}</p>
                                         {selectedOrder.shippingAddress2 && <p style={{ margin: '5px 0' }}>{selectedOrder.shippingAddress2}</p>}
-                                        <p style={{ margin: '5px 0' }}>{selectedOrder.city}, {selectedOrder.zip}</p>
+                                        <p style={{ margin: '5px 0' }}>{selectedOrder.city}, {selectedOrder.state ? `${selectedOrder.state} - ` : ''}{selectedOrder.zip}</p>
                                         <p style={{ margin: '5px 0' }}>{selectedOrder.country}</p>
                                         <p style={{ margin: '15px 0 0 0' }}><strong>Phone:</strong> {selectedOrder.phone}</p>
                                     </div>
 
                                     {/* PAYMENT & TRACKING WIDGET */}
-                                    <div className="no-print" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', minWidth: '250px' }}>
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '15px', minWidth: '250px' }}>
                                         
                                         <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '8px' }}>
                                             <h4 style={{ margin: '0 0 15px 0', color: '#f1c40f', display: 'flex', alignItems: 'center', gap: '10px' }}><FaMoneyCheckAlt /> Payment Verification</h4>
@@ -396,7 +396,7 @@ export default function Orders() {
                                             <p style={{ margin: '5px 0', fontSize: '0.85rem', color: '#94a3b8' }}>Txn ID: {selectedOrder.transactionId || 'Awaiting Payment'}</p>
                                         </div>
 
-                                        <form onSubmit={handleLogisticsUpdate} style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(52, 152, 219, 0.2)' }}>
+                                        <form className="no-print" onSubmit={handleLogisticsUpdate} style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(52, 152, 219, 0.2)' }}>
                                             <h4 style={{ margin: '0 0 15px 0', color: '#3498db', display: 'flex', alignItems: 'center', gap: '10px' }}><FaTruck /> Courier Tracking</h4>
                                             <input 
                                                 className="glass-input" 
@@ -426,22 +426,22 @@ export default function Orders() {
                                 <div>
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <thead>
-                                            <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.2)' }}>
-                                                <th style={{ textAlign: 'left', padding: '10px 0' }}>Item Description</th>
-                                                <th style={{ textAlign: 'center', padding: '10px 0' }}>Qty</th>
-                                                <th style={{ textAlign: 'right', padding: '10px 0' }}>Unit Price</th>
-                                                <th style={{ textAlign: 'right', padding: '10px 0' }}>Subtotal</th>
+                                            <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.2)' }} className="print-border-bottom">
+                                                <th style={{ textAlign: 'left', padding: '12px 10px', width: '50%' }}>Item Description</th>
+                                                <th style={{ textAlign: 'center', padding: '12px 10px', width: '15%' }}>Qty</th>
+                                                <th style={{ textAlign: 'right', padding: '12px 10px', width: '15%' }}>Unit Price</th>
+                                                <th style={{ textAlign: 'right', padding: '12px 10px', width: '20%' }}>Subtotal</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {selectedOrder.orderItems?.map((item, index) => (
-                                                <tr key={index} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                    <td style={{ padding: '15px 0', fontWeight: '500' }}>
+                                                <tr key={index} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }} className="print-border-bottom-light">
+                                                    <td style={{ padding: '15px 10px', fontWeight: '500' }}>
                                                         {item.product?.name || 'Unknown Product'}
                                                     </td>
-                                                    <td style={{ textAlign: 'center', padding: '15px 0' }}>{item.quantity}</td>
-                                                    <td style={{ textAlign: 'right', padding: '15px 0' }}>₹{(item.product?.price || 0).toLocaleString('en-IN')}</td>
-                                                    <td style={{ textAlign: 'right', padding: '15px 0' }}>₹{((item.product?.price || 0) * item.quantity).toLocaleString('en-IN')}</td>
+                                                    <td style={{ textAlign: 'center', padding: '15px 10px' }}>{item.quantity}</td>
+                                                    <td style={{ textAlign: 'right', padding: '15px 10px' }}>₹{(item.product?.price || 0).toLocaleString('en-IN')}</td>
+                                                    <td style={{ textAlign: 'right', padding: '15px 10px' }}>₹{((item.product?.price || 0) * item.quantity).toLocaleString('en-IN')}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

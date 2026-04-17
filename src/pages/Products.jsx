@@ -218,10 +218,10 @@ export default function Products() {
                         {editingId ? 'Edit Item' : 'Add New Item'}
                     </h3>
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <input className="glass-input" type="text" placeholder="Item Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                        <input className="glass-input" type="text" placeholder="Item Name" value={name} onChange={(e) => setName(e.target.value)} required maxLength="100" />
                         
                         <div style={{ display: 'flex', gap: '15px' }}>
-                            <input className="glass-input" type="text" placeholder="Brand (Optional)" value={brand} onChange={(e) => setBrand(e.target.value)} style={{ flex: 1 }} />
+                            <input className="glass-input" type="text" placeholder="Brand (Optional)" value={brand} onChange={(e) => setBrand(e.target.value)} style={{ flex: 1 }} maxLength="50" />
                             <select className="glass-input" value={category} onChange={(e) => setCategory(e.target.value)} required style={{ flex: 1, appearance: 'none' }}>
                                 <option value="" style={{ color: 'black' }}>-- Category --</option>
                                 {categories.map(cat => (
@@ -230,7 +230,7 @@ export default function Products() {
                             </select>
                         </div>
 
-                        <textarea className="glass-input" placeholder="Item Description..." value={description} onChange={(e) => setDescription(e.target.value)} required rows="2" style={{ resize: 'vertical' }} />
+                        <textarea className="glass-input" placeholder="Item Description..." value={description} onChange={(e) => setDescription(e.target.value)} required rows="2" style={{ resize: 'vertical' }} maxLength="500" />
                         
                         <textarea className="glass-input" placeholder="Rich Description (HTML allowed)..." value={richDescription} onChange={(e) => setRichDescription(e.target.value)} rows="3" style={{ resize: 'vertical' }} />
 
