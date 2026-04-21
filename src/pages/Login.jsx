@@ -30,10 +30,11 @@ export default function Login() {
         setError('');
 
         try {
-            await api.post('/users/login', { email, password });
+            const response = await api.post('/users/login', { email, password });
             
-            // Set a simple flag so React knows we are logged in
+            // Set auth flags so React knows the role
             localStorage.setItem('is_authenticated', 'true');
+            localStorage.setItem('is_super_admin', response.data.isSuperAdmin ? 'true' : 'false');
             
             // Clean up old insecure tokens if they exist from prior legacy code
             localStorage.removeItem('jgm_admin_token'); 

@@ -138,6 +138,7 @@ import Users from "./pages/Users";
 const AdminLayout = () => {
     const [isVerified, setIsVerified] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     
     // --- MOBILE SIDEBAR STATE ---
     const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -148,10 +149,15 @@ const AdminLayout = () => {
     useEffect(() => {
         const verifySecureSession = async () => {
             try {
-                await api.get('/users/verify-session');
+                const res = await api.get('/users/verify-session');
                 setIsVerified(true);
+                // Sync role from backend on every page navigation
+                const superAdmin = res.data.isSuperAdmin || false;
+                setIsSuperAdmin(superAdmin);
+                localStorage.setItem('is_super_admin', superAdmin ? 'true' : 'false');
             } catch (error) {
                 localStorage.removeItem('is_authenticated');
+                localStorage.removeItem('is_super_admin');
                 navigate("/login", { replace: true });
             } finally {
                 setAuthLoading(false);
@@ -177,8 +183,8 @@ const AdminLayout = () => {
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', position: 'relative' }}>
-            {/* Sidebar receives the mobile state controls */}
-            <Sidebar isOpen={isMobileOpen} setIsOpen={setIsMobileOpen} />
+            {/* Sidebar receives the mobile state controls and role */}
+            <Sidebar isOpen={isMobileOpen} setIsOpen={setIsMobileOpen} isSuperAdmin={isSuperAdmin} />
             
             <div style={{ flex: 1, height: '100vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', width: '100%' }}>
                 
@@ -194,7 +200,7 @@ const AdminLayout = () => {
 
                 {/* The target wrapper our CSS media query will target to shrink paddings */}
                 <div className="page-content-wrapper" style={{ flex: 1 }}>
-                    <Outlet /> 
+                    <Outlet context={{ isSuperAdmin }} />
                 </div>
             </div>
         </div>

@@ -157,18 +157,20 @@ import {
     FaUsers, FaSignOutAlt, FaTimes 
 } from 'react-icons/fa';
 
-export default function Sidebar({ isOpen, setIsOpen }) {
+export default function Sidebar({ isOpen, setIsOpen, isSuperAdmin }) {
     const navigate = useNavigate();
 
     const handleLogout = async () => {
         try {
             await api.post('/users/logout');
             localStorage.removeItem('is_authenticated');
+            localStorage.removeItem('is_super_admin');
             toast.success('Logged out successfully');
             navigate('/login', { replace: true });
         } catch (error) {
             toast.error('Error during logout');
             localStorage.removeItem('is_authenticated');
+            localStorage.removeItem('is_super_admin');
             navigate('/login', { replace: true });
         }
     };
@@ -238,7 +240,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                     <NavLink to="/orders" style={navLinkStyle}><FaClipboardList /> Orders</NavLink>
                     <NavLink to="/products" style={navLinkStyle}><FaBoxOpen /> Products</NavLink>
                     <NavLink to="/categories" style={navLinkStyle}><FaTags /> Categories</NavLink>
-                    <NavLink to="/users" style={navLinkStyle}><FaUsers /> Users</NavLink>
+                    {/* SECURITY: Only Super Admins can see the Users section */}
+                    {isSuperAdmin && (
+                        <NavLink to="/users" style={navLinkStyle}><FaUsers /> Users</NavLink>
+                    )}
                 </nav>
 
                 <div style={{ padding: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
